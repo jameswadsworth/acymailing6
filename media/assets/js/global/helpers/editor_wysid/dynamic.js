@@ -187,7 +187,7 @@ const acym_editorWysidDynammic = {
             jQuery('#acym__wysid__context__plugins select')
                 .select2({
                     theme: 'foundation',
-                    width: '115px'
+                    width: '160px'
                 });
         }
     },

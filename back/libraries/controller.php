@@ -185,8 +185,6 @@ class acymController extends acymObject
             $viewNamespace = 'AcyMailing\\FrontViews\\';
         }
 
-        acym_prepareFrontViewDisplay($this->name);
-
         $viewName = ucfirst($this->getName());
         $viewNamespace .= $viewName.'View'.$viewName;
         $view = new $viewNamespace;
@@ -336,5 +334,12 @@ class acymController extends acymObject
             }
         }
         $this->$task();
+    }
+
+    protected function prepareMultilingualOption(&$data)
+    {
+        if (!acym_isMultilingual()) return;
+
+        $data['translation_languages'] = acym_getMultilingualLanguages();
     }
 }

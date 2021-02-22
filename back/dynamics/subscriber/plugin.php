@@ -271,7 +271,7 @@ class plgAcymSubscriber extends acymPlugin
 
         if (!in_array($options['field'], $usersColumns)) {
             $fieldClass = new FieldClass();
-            $field = $fieldClass->getOneFieldByID($options['field']);
+            $field = $fieldClass->getOneById($options['field']);
 
             $type = 'phone' == $field->type ? 'phone' : '';
 
@@ -454,7 +454,7 @@ class plgAcymSubscriber extends acymPlugin
             ).'</button>';
         $actions['acy_add_queue']->option .= acym_info('ACYM_CHOOSE_EXISTING_DESC', '', 'margin-left-0');
         $actions['acy_add_queue']->option .= '<div class="medium-4 grid-x cell">';
-        $actions['acy_add_queue']->option .= acym_dateField('acym_action[actions][__and__][acy_add_queue][time]', '[time]');
+        $actions['acy_add_queue']->option .= acym_dateField('acym_action[actions][__and__][acy_add_queue][time]', '[time]', '', '', '+');
         $actions['acy_add_queue']->option .= '</div>';
 
         $actions['acy_remove_queue'] = new stdClass();
@@ -523,7 +523,7 @@ class plgAcymSubscriber extends acymPlugin
             $column = "user.`".acym_secureDBColumn($action['field'])."`";
         } else {
             $fieldClass = new FieldClass();
-            $field = $fieldClass->getOneFieldById($action['field']);
+            $field = $fieldClass->getOneById($action['field']);
             if (empty($field)) return 'Unknown field: '.$action['field'];
             if ('date' == $field->type) $value = acym_escapeDB(json_encode(explode('/', trim($value, '"\''))));
 
@@ -579,7 +579,6 @@ class plgAcymSubscriber extends acymPlugin
         if ($mailClass::TYPE_AUTOMATION != $mail->type) {
             unset($mail->id);
             $mail->type = $mailClass::TYPE_AUTOMATION;
-            $mail->template = 2;
             $mail->id = $mailClass->save($mail);
         }
 
@@ -697,7 +696,7 @@ class plgAcymSubscriber extends acymPlugin
 
             if (!in_array($automation['acy_field']['field'], $usersColumns)) {
                 $fieldClass = new FieldClass();
-                $field = $fieldClass->getOneFieldById($automation['acy_field']['field']);
+                $field = $fieldClass->getOneById($automation['acy_field']['field']);
                 $automation['acy_field']['field'] = $field->name;
             }
             $automation = acym_translationSprintf(
@@ -727,7 +726,7 @@ class plgAcymSubscriber extends acymPlugin
 
             if (!in_array($automationAction['acy_user_value']['field'], $usersColumns)) {
                 $fieldClass = new FieldClass();
-                $field = $fieldClass->getOneFieldById($automationAction['acy_user_value']['field']);
+                $field = $fieldClass->getOneById($automationAction['acy_user_value']['field']);
                 $automationAction['acy_user_value']['field'] = $field->name;
             }
             $automationAction = acym_translationSprintf(
@@ -826,14 +825,14 @@ class plgAcymSubscriber extends acymPlugin
 
     public function getFollowupTriggers(&$triggers)
     {
-        $triggers[self::FOLLOWTRIGGER] = acym_translation('ACYM_USER_CREATION');
+        $triggers[self::FOLLOWTRIGGER] = acym_translation('ACYM_SUBSCRIBER_CREATION');
     }
 
     public function getFollowupTriggerBlock(&$blocks)
     {
         $blocks[] = [
-            'name' => acym_translation('ACYM_USER_CREATION'),
-            'description' => acym_translation('ACYM_USER_CREATION_DESC'),
+            'name' => acym_translation('ACYM_SUBSCRIBER_CREATION'),
+            'description' => acym_translation('ACYM_SUBSCRIBER_CREATION_DESC'),
             'icon' => 'acymicon-user-plus',
             'link' => acym_completeLink('campaigns&task=edit&step=followupCondition&trigger='.self::FOLLOWTRIGGER),
             'level' => 2,

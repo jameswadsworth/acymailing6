@@ -172,3 +172,18 @@ div[aria-haspopup='true'] {
         }
     }
 }
+
+.acym__modal__users__summary {
+    .acym__listing {
+
+        h4.acym__list__settings__users__listing {
+            font-size: 1rem;
+        }
+
+        .acym__list__settings__users__listing {
+            height: 25rem;
+            overflow: auto;
+            align-content: baseline;
+        }
+    }
+}

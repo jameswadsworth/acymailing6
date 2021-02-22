@@ -63,20 +63,20 @@ class plgAcymMailgun extends acymPlugin
 					   class="cell acym__configuration__mail__settings__text">
 			</div>
 			<div class="cell grid-x acym_vcenter acym__sending__methods__one__settings">
-				<label class="cell" for="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key">
+				<label class="cell shrink margin-right-1" for="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key">
                     <?php echo acym_translationSprintf(
                         'ACYM_SENDING_METHOD_API_KEY',
                         self::SENDING_METHOD_NAME
                     ); ?>
 				</label>
+                <?php echo $this->getLinks('https://signup.mailgun.com/new/signup', 'https://www.mailgun.com/pricing/'); ?>
 				<input type="text"
 					   id="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key"
 					   value="<?php echo empty($data['tab']->config->values[self::SENDING_METHOD_ID.'_api_key']) ? '' : $data['tab']->config->values[self::SENDING_METHOD_ID.'_api_key']->value; ?>"
 					   name="config[<?php echo self::SENDING_METHOD_ID; ?>_api_key]"
 					   class="cell acym__configuration__mail__settings__text">
-				<div class="cell grid-x margin-top-1">
-                    <?php echo $this->getTestCredentialsSendingMethodButton(self::SENDING_METHOD_ID); ?>
-				</div>
+                <?php echo $this->getTestCredentialsSendingMethodButton(self::SENDING_METHOD_ID); ?>
+                <?php echo $this->getCopySettingsButton($data, self::SENDING_METHOD_ID, 'wp_mail_smtp'); ?>
 			</div>
 		</div>
         <?php
@@ -183,5 +183,25 @@ class plgAcymMailgun extends acymPlugin
     public function onAcymSendingMethodEmbedImage(&$data)
     {
         $data['embedImage'][self::SENDING_METHOD_ID] = false;
+    }
+
+    public function onAcymGetSettingsSendingMethodFromPlugin(&$data, $plugin, $method)
+    {
+        if ($method != self::SENDING_METHOD_ID) return;
+
+        //__START__wordpress_
+        if (ACYM_CMS == 'wordpress' && $plugin == 'wp_mail_smtp') {
+            $wpMailSmtpSetting = get_option('wp_mail_smtp', '');
+            if (empty($wpMailSmtpSetting) || empty($wpMailSmtpSetting['mailgun'])) return;
+
+            $settings = $wpMailSmtpSetting['mailgun'];
+
+            if (empty($settings['api_key']) || empty($settings['domain']) || empty($settings['region'])) return;
+
+            $data['mailgun_api_domain'] = $settings['domain'];
+            $data['mailgun_api_key'] = $settings['api_key'];
+            $data['mailgun_api_region'] = $settings['region'];
+        }
+        //__END__wordpress_
     }
 }

@@ -2,6 +2,7 @@
 
 namespace AcyMailing\Controllers;
 
+use AcyMailing\Classes\FieldClass;
 use AcyMailing\Classes\ListClass;
 use AcyMailing\Classes\MailClass;
 use AcyMailing\Classes\UrlClass;
@@ -11,6 +12,7 @@ use AcyMailing\Helpers\MailerHelper;
 use AcyMailing\Helpers\TabHelper;
 use AcyMailing\Helpers\ToolbarHelper;
 use AcyMailing\Libraries\acymController;
+use AcyMailing\Libraries\acymPlugin;
 use AcyMailing\Types\AclType;
 use AcyMailing\Types\DelayType;
 use AcyMailing\Types\FailactionType;
@@ -36,7 +38,17 @@ class ConfigurationController extends acymController
         $this->prepareClass($data);
         $this->checkConfigMail();
         $this->prepareToolbar($data);
+
+        //__START__wordpress_
+        if (ACYM_CMS == 'wordpress' && acym_isExtensionActive('wp-mail-smtp/wp_mail_smtp.php')) {
+            $data['wp_mail_smtp_installed'] = true;
+            $pluginClass = new acymPlugin();
+            $data['button_copy_settings_from'] = $pluginClass->getCopySettingsButton($data, 'from_options', 'wp_mail_smtp');
+        }
+        //__END__wordpress_
+
         $this->prepareMailSettings($data);
+        $this->prepareMultilingualOption($data);
 
         parent::display($data);
     }
@@ -106,7 +118,7 @@ class ConfigurationController extends acymController
         $data['languages'] = [];
 
         foreach ($langs as $lang => $obj) {
-            if (strlen($lang) != 5 || $lang == "xx-XX") continue;
+            if ($lang == "xx-XX") continue;
 
             $oneLanguage = new \stdClass();
             $oneLanguage->language = $lang;
@@ -130,7 +142,7 @@ class ConfigurationController extends acymController
         usort(
             $data['languages'],
             function ($a, $b) {
-                return strtolower($a->name) > strtolower($b->name);
+                return strtolower($a->name) > strtolower($b->name) ? 1 : -1;
             }
         );
 
@@ -189,7 +201,7 @@ class ConfigurationController extends acymController
         $data['acl'] = acym_cmsPermission();
         $data['acl_advanced'] = [
             'forms' => 'ACYM_SUBSCRIPTION_FORMS',
-            'users' => 'ACYM_USERS',
+            'users' => 'ACYM_SUBSCRIBERS',
             'fields' => 'ACYM_CUSTOM_FIELDS',
             'lists' => 'ACYM_LISTS',
             'segments' => 'ACYM_SEGMENTS',
@@ -636,7 +648,7 @@ class ConfigurationController extends acymController
         foreach ($tests as $port => $server) {
             $fp = @fsockopen($server, $port, $errno, $errstr, 5);
             if ($fp) {
-                echo '<br /><span style="color:#3dea91" >'.acym_translationSprintf('ACYM_SMTP_AVAILABLE_PORT', $port).'</span>';
+                echo '<span style="color:#3dea91" >'.acym_translationSprintf('ACYM_SMTP_AVAILABLE_PORT', $port).'</span><br />';
                 fclose($fp);
                 $total++;
             } else {
@@ -1025,7 +1037,7 @@ class ConfigurationController extends acymController
     }
 
     //The listing parameter allows us to know if we need to display the listing or not
-    public function modifyCron($functionToCall, $licenseKey = null, $frequency = null)
+    public function modifyCron($functionToCall, $licenseKey = null)
     {
         if (is_null($licenseKey)) {
             $config = acym_getVar('array', 'config', []);
@@ -1039,19 +1051,15 @@ class ConfigurationController extends acymController
             return false;
         }
 
-        if (empty($frequency)) {
-            $frequency = empty($config['cron_updateme_frequency']) ? 900 : $config['cron_updateme_frequency'];
-        }
-
         $url = ACYM_UPDATEMEURL.'launcher&task='.$functionToCall;
 
         $fields = [
             'domain' => ACYM_LIVE,
             'license_key' => $licenseKey,
             'cms' => ACYM_CMS,
-            'frequency' => $frequency,
+            'frequency' => 900,
             'level' => $this->config->get('level', ''),
-            'url_version' => 'secured'
+            'url_version' => 'secured',
         ];
 
         //We call updateme to activate/deactivate the cron
@@ -1071,8 +1079,6 @@ class ConfigurationController extends acymController
 
             return false;
         }
-
-        $this->config->save(['cron_updateme_frequency' => $frequency]);
 
         return $result;
     }
@@ -1134,5 +1140,33 @@ class ConfigurationController extends acymController
 
         if (empty($sendingMethod) || empty($config)) acym_sendAjaxResponse(acym_translation('ACYM_COULD_NOT_FIND_SENDING_METHOD'), [], false);
         acym_trigger('onAcymTestCredentialSendingMethod', [$sendingMethod, $config]);
+    }
+
+    public function copySettingsSendingMethod()
+    {
+        $plugin = acym_getVar('string', 'plugin', '');
+        $method = acym_getVar('string', 'method', '');
+
+        if (empty($plugin) || empty($method)) acym_sendAjaxResponse(acym_translation('ACYM_COULD_NOT_RETRIEVE_DATA'), [], false);
+
+        $data = [];
+
+        if ($method == 'from_options') {
+            $wpMailSmtpSetting = get_option('wp_mail_smtp', '');
+            if (!empty($wpMailSmtpSetting) && !empty($wpMailSmtpSetting['mail'])) {
+                $mailSettings = $wpMailSmtpSetting['mail'];
+
+                if (!empty($mailSettings['from_email']) && !empty($mailSettings['from_name'])) {
+                    $data['from_email'] = $mailSettings['from_email'];
+                    $data['from_name'] = $mailSettings['from_name'];
+                }
+            }
+        } else {
+            acym_trigger('onAcymGetSettingsSendingMethodFromPlugin', [&$data, $plugin, $method]);
+        }
+
+        if (empty($data)) acym_sendAjaxResponse(acym_translation('ACYM_COULD_NOT_RETRIEVE_DATA'), [], false);
+
+        acym_sendAjaxResponse('', $data);
     }
 }

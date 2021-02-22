@@ -87,6 +87,11 @@ jQuery(document).ready(function ($) {
             '#acym__fields__editable-user-creation',
             '#acym__fields__editable-user-modification',
             '#acym__fields__custom-text'
+        ],
+        language: [
+            '#acym__fields__required',
+            '#acym__fields__editable-user-creation',
+            '#acym__fields__editable-user-modification'
         ]
     };
 
@@ -114,6 +119,7 @@ jQuery(document).ready(function ($) {
         setDatabaseField();
         setDisplayOnlyIf();
         setDeleteValue();
+        acym_helperSelectionMultilingual.init('field');
     }
 
     Init();

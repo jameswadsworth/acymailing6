@@ -31,6 +31,8 @@
 }
 
 #acym_wrapper {
+    font-size: 13px;
+
     .acym__title__light__blue {
         font-size: 20px;
         font-weight: bold;
@@ -121,6 +123,10 @@
     .acym_not_bold {
         font-weight: normal !important;
     }
+}
+
+.text-underline {
+    text-decoration: underline;
 }
 
 

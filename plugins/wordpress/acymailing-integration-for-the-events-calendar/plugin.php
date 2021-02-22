@@ -182,12 +182,14 @@ class plgAcymTheeventscalendar extends acymPlugin
                 'type' => 'date',
                 'name' => 'from',
                 'default' => time(),
+                'relativeDate' => '+',
             ],
             [
                 'title' => 'ACYM_TO',
                 'type' => 'date',
                 'name' => 'to',
                 'default' => '',
+                'relativeDate' => '+',
             ],
             [
                 'title' => 'ACYM_ORDER_BY',

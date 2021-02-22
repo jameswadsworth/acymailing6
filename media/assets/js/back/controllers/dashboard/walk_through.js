@@ -11,6 +11,7 @@ jQuery(document).ready(function ($) {
         acym_helperEditorWysid.initEditor();
         acym_helperDynamic.setModalDynamics();
         acym_helperMailer.setTestCredentialsSendingMethods();
+        acym_helperMailer.setButtonCopyFromPlugin();
         acym_helperSelectionPage.setSelectionElement(true, false, undefined, '#acym__phpmail-step__mailer__title');
     }
 

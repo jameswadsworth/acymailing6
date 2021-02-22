@@ -19,7 +19,16 @@
             $orderingOptionsClean = acym_escape(json_encode($orderingOptions));
             ?>
 			<div class="cell small-11 acym__list__settings__subscribers__order">
-				<select2 name="users_ordering" value="<?php echo $data['ordering']; ?>" :options="<?php echo $orderingOptionsClean; ?>" v-model="users_ordering"></select2>
+				<select2
+						name="users_ordering"
+						v-if="<?php echo acym_isAdmin() ? 'true' : 'false'; ?>"
+						value="<?php echo $data['ordering']; ?>"
+						:options="<?php echo $orderingOptionsClean; ?>"
+						v-model="users_ordering"></select2>
+				<select name="users_ordering" v-model="users_ordering" v-if="<?php echo acym_isAdmin() ? 'false' : 'true'; ?>">
+					<option v-for="(option, index) in <?php echo $orderingOptionsClean; ?>" :selected="index === '<?php echo $data['ordering']; ?>'" :value="index">{{ option }}
+					</option>
+				</select>
 			</div>
 			<div class="cell small-1 acym__list__settings__subscribers__order">
 				<i class="acym__listing__ordering__sort-order <?php echo $data['classSortOrder']; ?>" aria-hidden="true" @click="sortOrdering"></i>
@@ -65,6 +74,6 @@
 			<div class="cell grid-x shrink margin-top-1"><?php echo $data['svg']; ?></div>
 		</div>
 		<div class="grid-x cell acym__listing v-align-top acym__list__settings__subscribers__listing" v-show="displayedSubscribers.length==0 && !loading" style="display:none;">
-			<span><?php echo acym_translation('ACYM_NO_USERS_FOUND'); ?></span>
+			<span><?php echo acym_translation('ACYM_NO_SUBSCRIBERS_FOUND'); ?></span>
 		</div>
 	</div>

@@ -277,7 +277,7 @@ class CampaignClass extends acymClass
 
     public function getOneByIdWithMail($id)
     {
-        $query = 'SELECT campaign.*, mail.name, mail.subject, mail.body, mail.from_name, mail.from_email, mail.reply_to_name, mail.reply_to_email, mail.bcc, mail.links_language, mail.tracking
+        $query = 'SELECT campaign.*, mail.name, mail.subject, mail.body, mail.from_name, mail.from_email, mail.reply_to_name, mail.reply_to_email, mail.bcc, mail.links_language, mail.tracking, mail.translation
                 FROM #__acym_campaign AS campaign
                 JOIN #__acym_mail AS mail ON campaign.mail_id = mail.id
                 WHERE campaign.id = '.intval($id);
@@ -466,7 +466,7 @@ class CampaignClass extends acymClass
 
     public function getFilterCampaign($sendingParams)
     {
-        $filters = [];
+        $filters = [0 => []];
         if (!empty($sendingParams['segment'])) {
             if (!empty($sendingParams['segment']['filters'])) {
                 $filters = $sendingParams['segment']['filters'];
@@ -493,7 +493,9 @@ class CampaignClass extends acymClass
 
         $filters = $this->getFilterCampaign($campaign->sending_params);
 
-        acym_trigger('onAcymSendCampaignSpecial', [$campaign, &$filters]);
+        foreach ($filters as $key => $filter) {
+            acym_trigger('onAcymSendCampaignSpecial', [$campaign, &$filters[$key]]);
+        }
 
         // Make sure some receivers have been selected
         $lists = acym_loadResultArray('SELECT list_id FROM #__acym_mail_has_list WHERE mail_id = '.intval($campaign->mail_id));
@@ -580,7 +582,7 @@ class CampaignClass extends acymClass
         $mailStatClass->save($mailStat);
 
         if ($result === 0) {
-            $this->errors[] = acym_translation('ACYM_NO_USERS_FOUND');
+            $this->errors[] = acym_translation('ACYM_NO_SUBSCRIBERS_FOUND');
 
             return false;
         }
@@ -717,6 +719,12 @@ class CampaignClass extends acymClass
         // If we want an archive for a specific user
         if (isset($params['userId'])) {
             $where .= 'AND userlist.user_id = '.intval($params['userId']).' ';
+        }
+
+        // If the user search for a newsletter
+        if (isset($params['search'])) {
+            $search = acym_escapeDB('%'.utf8_encode($params['search']).'%');
+            $where .= 'AND (mail.subject LIKE '.$search.' OR mail.name LIKE '.$search.')';
         }
 
         $query .= $where;

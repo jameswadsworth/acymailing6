@@ -8,7 +8,7 @@ function acym_line_chart($id, $dataMonth, $dataDay, $dataHour)
     return acym_lineChart($id, $dataMonth, $dataDay, $dataHour);
 }
 
-function acym_lineChart($id, $dataMonth, $dataDay, $dataHour)
+function acym_lineChart($id, $dataMonth, $dataDay, $dataHour, $ajax = false)
 {
     acym_initializeChart();
 
@@ -81,6 +81,7 @@ function acym_lineChart($id, $dataMonth, $dataDay, $dataHour)
                 </div>';
 
     $return .= '<script>
+                '.($ajax ? '' : 'document.addEventListener("DOMContentLoaded", function () {').'
                     var ctx = document.getElementById("'.$idCanvas.'").getContext("2d");
                     
                     //Background color under the line
@@ -233,6 +234,7 @@ function acym_lineChart($id, $dataMonth, $dataDay, $dataHour)
                         elem.classList.add("selected__choose_by");
                     }
                     document.querySelector(".selected__choose_by").click();
+                '.($ajax ? '' : '});').'
                 </script>';
 
     return $return;
@@ -331,6 +333,7 @@ function acym_roundChart($id, $percentage, $type = '', $class = '', $topLabel = 
                 </div>';
     $return .= '<script>
             //Override to add text in the middle of chart
+            document.addEventListener("DOMContentLoaded", function () {
             Chart.pluginService.register({
                 beforeDraw: function(chart){
                     if(chart.config.options.elements.center){
@@ -383,6 +386,7 @@ function acym_roundChart($id, $percentage, $type = '', $class = '', $topLabel = 
                 }
             };
             var chart = new Chart(ctx, config);
+            });
         </script>';
 
 
@@ -417,10 +421,12 @@ function acym_pieChart($id, $data = [], $class = '', $topLabel = '', $bottomLabe
 
     asort($data);
     $data = array_reverse($data, true);
+    $position = 0;
     foreach ($data as $label => $number) {
         $data[$label] = (float)$number;
         $allLabelsArray[] = $label;
-        $colors[] = acym_randomRgba();
+        $colors[] = acym_getChartColor($position);
+        $position++;
     }
 
     $allNumbers = implode(',', $data);
@@ -438,6 +444,7 @@ function acym_pieChart($id, $data = [], $class = '', $topLabel = '', $bottomLabe
                 </div>';
 
     $return .= '<script>
+        document.addEventListener("DOMContentLoaded", function () {
             var ctx = document.getElementById("'.$idCanvas.'").getContext("2d");
             var config = {
                 type: "pie",
@@ -482,12 +489,19 @@ function acym_pieChart($id, $data = [], $class = '', $topLabel = '', $bottomLabe
             };
             var chart = new Chart(ctx, config);
             document.getElementById("'.$idLegend.'").innerHTML = (chart.generateLegend());
+        });
 </script>';
 
     return $return;
 }
 
-function acym_randomRgba()
+function acym_getChartColor($position = null)
 {
-    return 'rgba('.round(rand(0, 100) * 2.55).','.round(rand(0, 100) * 2.55).','.round(rand(0, 100) * 2.55).',.8)';
+    if ($position === null) {
+        return 'rgba('.round(rand(0, 100) * 2.55).','.round(rand(0, 100) * 2.55).','.round(rand(0, 100) * 2.55).',.8)';
+    }
+
+    $colors = ['#845EC2', '#D65DB1', '#FF6F91', '#FF9671', '#FFC75F', '#F9F871', '#8BE884', '#00CFA9', '#00AFC6', '#008AC9', '#2261AC'];
+
+    return $colors[$position % 11];
 }

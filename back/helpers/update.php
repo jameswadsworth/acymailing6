@@ -5,6 +5,7 @@ namespace AcyMailing\Helpers;
 use AcyMailing\Classes\ActionClass;
 use AcyMailing\Classes\AutomationClass;
 use AcyMailing\Classes\ConditionClass;
+use AcyMailing\Classes\FieldClass;
 use AcyMailing\Classes\ListClass;
 use AcyMailing\Classes\MailClass;
 use AcyMailing\Classes\OverrideClass;
@@ -162,7 +163,7 @@ class UpdateHelper extends acymObject
 
         $menuStrings = [
             'ACYM_DASHBOARD',
-            'ACYM_USERS',
+            'ACYM_SUBSCRIBERS',
             'ACYM_CUSTOM_FIELDS',
             'ACYM_LISTS',
             'ACYM_SEGMENTS',
@@ -180,8 +181,8 @@ class UpdateHelper extends acymObject
             'ACYM_MENU_ARCHIVE_DESC',
             'ACYM_MENU_LISTS',
             'ACYM_MENU_LISTS_DESC',
-            'ACYM_MENU_USERS',
-            'ACYM_MENU_USERS_DESC',
+            'ACYM_MENU_SUBSCRIBERS',
+            'ACYM_MENU_SUBSCRIBERS_DESC',
             'ACYM_MENU_CAMPAIGNS',
             'ACYM_MENU_CAMPAIGNS_DESC',
             'ACYM_SUBSCRIPTION_FORMS',
@@ -226,6 +227,9 @@ class UpdateHelper extends acymObject
     (1, 'ACYM_NAME', 'text', NULL, 1, NULL, 0, 1, '{\"editable_user_creation\":\"1\",\"editable_user_modification\":\"1\",\"error_message\":\"\",\"error_message_invalid\":\"\",\"size\":\"\",\"rows\":\"\",\"columns\":\"\",\"format\":\"\",\"custom_text\":\"\",\"css_class\":\"\",\"authorized_content\":{\"0\":\"all\",\"regex\":\"\"}}', 1, 1, 1, 1, 1, 'all', 'acym_name'), 
     (2, 'ACYM_EMAIL', 'text', NULL, 1, NULL, 1, 2, '{\"editable_user_creation\":\"1\",\"editable_user_modification\":\"1\",\"error_message\":\"\",\"error_message_invalid\":\"\",\"size\":\"\",\"rows\":\"\",\"columns\":\"\",\"format\":\"\",\"custom_text\":\"\",\"css_class\":\"\",\"authorized_content\":{\"0\":\"all\",\"regex\":\"\"}}', 1, 1, 1, 1, 1, 'all', 'acym_email');";
         acym_query($query);
+
+        $fieldClass = new FieldClass();
+        $fieldClass->insertLanguageField();
     }
 
     public function installTemplates($checkBeforeInstall = false)
@@ -264,10 +268,10 @@ class UpdateHelper extends acymObject
             );
             $template = $mailClass->encode($template);
 
-            $query = 'INSERT INTO `#__acym_mail` (`name`, `creation_date`, `thumbnail`, `drag_editor`, `library`, `type`, `body`, `subject`, `template`, `from_name`, `from_email`, `reply_to_name`, `reply_to_email`, `bcc`, `settings`, `stylesheet`, `attachments`, `creator_id`) VALUES
-                     ('.$tmplName.', '.$creationDate.', '.$thumbnail.', 1, 1, '.acym_escapeDB($mailClass::TYPE_STANDARD).', '.acym_escapeDB(
+            $query = 'INSERT INTO `#__acym_mail` (`name`, `creation_date`, `thumbnail`, `drag_editor`, `library`, `type`, `body`, `subject`, `from_name`, `from_email`, `reply_to_name`, `reply_to_email`, `bcc`, `settings`, `stylesheet`, `attachments`, `creator_id`) VALUES
+                     ('.$tmplName.', '.$creationDate.', '.$thumbnail.', 1, 1, '.acym_escapeDB($mailClass::TYPE_TEMPLATE).', '.acym_escapeDB(
                     $template->body
-                ).', "", 1, NULL, NULL, NULL, NULL, NULL, '.$settings.', '.$stylesheet.', NULL, '.$currentUserId.');';
+                ).', "", NULL, NULL, NULL, NULL, NULL, '.$settings.', '.$stylesheet.', NULL, '.$currentUserId.');';
             acym_query($query);
             $installedTemplates++;
         }
@@ -299,8 +303,8 @@ class UpdateHelper extends acymObject
         $adminCreate->desc = 'ACYM_ADMIN_USER_CREATE_DESC';
         $adminCreate->triggers = '{"user_creation":[""],"type_trigger":"user"}';
         $adminCreate->conditions = '{"type_condition":"user"}';
-        $adminCreate->emailTitle = acym_translation('ACYM_USER_CREATION');
-        $adminCreate->emailSubject = acym_translation('ACYM_USER_CREATION');
+        $adminCreate->emailTitle = acym_translation('ACYM_SUBSCRIBER_CREATION');
+        $adminCreate->emailSubject = acym_translation('ACYM_SUBSCRIBER_CREATION');
         $adminCreate->emailContent = '<h1 style="font-size: 24px;">'.acym_translation('ACYM_HELLO').' '.$this->getDTextDisplay('{subtag:name|ucfirst}', 'Marc').',</h1>
                     <p>'.acym_translation('ACYM_NEW_USER_ACYMAILING').':</p>
                     <p>'.acym_translation('ACYM_NAME').': '.$this->getDTextDisplay('{subtag:name|info:current}', 'Roger').'</p>
@@ -310,8 +314,8 @@ class UpdateHelper extends acymObject
         $adminModif->desc = 'ACYM_ADMIN_USER_MODIFICATION_DESC';
         $adminModif->triggers = '{"user_modification":[""],"type_trigger":"user"}';
         $adminModif->conditions = '{"type_condition":"user"}';
-        $adminModif->emailTitle = acym_translation('ACYM_USER_MODIFICATION');
-        $adminModif->emailSubject = acym_translation('ACYM_USER_MODIFICATION');
+        $adminModif->emailTitle = acym_translation('ACYM_SUBSCRIBER_MODIFICATION');
+        $adminModif->emailSubject = acym_translation('ACYM_SUBSCRIBER_MODIFICATION');
         $adminModif->emailContent = '<h1 style="font-size: 24px;">'.acym_translation('ACYM_HELLO').' '.$this->getDTextDisplay('{subtag:name|ucfirst}', 'Marc').',</h1>
                     <p>'.acym_translation('ACYM_USER_MODIFY_ACYMAILING').':</p>
                     <p>'.acym_translation('ACYM_NAME').': '.$this->getDTextDisplay('{subtag:name|info:current}', 'Roger').'</p>
@@ -346,7 +350,6 @@ class UpdateHelper extends acymObject
         $mailAutomation = new \stdClass();
         $mailAutomation->type = $mailClass::TYPE_AUTOMATION;
         $mailAutomation->library = 1;
-        $mailAutomation->template = 0;
         $mailAutomation->drag_editor = 1;
         $mailAutomation->creator_id = acym_currentUserId();
         $mailAutomation->creation_date = date('Y-m-d H:i:s', time());
@@ -534,9 +537,8 @@ class UpdateHelper extends acymObject
                 'name' => acym_translation(self::FIRST_EMAIL_NAME_KEY),
                 'subject' => acym_translation('ACYM_YOUR_FIRST_EMAIL'),
                 'content' => $body,
-                'template' => 1,
                 'settings' => '{"p":{"font-family":"Helvetica","font-size":"16px"},"#acym__wysid__background-colorpicker":{"background-color":"#f5f5f5"}}',
-                'type' => $mailClass::TYPE_STANDARD,
+                'type' => $mailClass::TYPE_TEMPLATE,
                 'thumbnail' => 'thumbnail_first_email.png',
             ];
             $mailingImage = 'image_mailing_step_email.jpg';
@@ -571,7 +573,6 @@ class UpdateHelper extends acymObject
                 $notif = new \stdClass();
                 $notif->type = empty($oneNotif['type']) ? $mailClass::TYPE_NOTIFICATION : $oneNotif['type'];
                 $notif->library = 1;
-                $notif->template = empty($oneNotif['template']) ? 0 : $oneNotif['template'];
                 $notif->settings = empty($oneNotif['settings']) ? '' : $oneNotif['settings'];
                 $notif->drag_editor = 1;
                 $notif->creator_id = acym_currentUserId();
@@ -601,7 +602,7 @@ class UpdateHelper extends acymObject
 
     private function getFormatedNotification($content)
     {
-        $begining = '<div id="acym__wysid__template" class="cell"><table class="body"><tbody><tr><td align="center" class="center acym__wysid__template__content" valign="top" style="background-color: rgb(239, 239, 239); padding: 40px 0 120px 0;"><center><table align="center" border="0" cellpadding="0" cellspacing="0"><tbody><tr><td class="acym__wysid__row ui-droppable ui-sortable" style="min-height: 0px; display: table-cell;"><table class="row acym__wysid__row__element" bgcolor="#dadada" border="0" cellpadding="0" cellspacing="0"><tbody style="background-color: rgb(218,218,218);" bgcolor="#ffffff"><tr><th class="small-12 medium-12 large-12 columns acym__wysid__row__element__th"><table class="acym__wysid__column" style="min-height: 0px; display: table;" border="0" cellpadding="0" cellspacing="0"><tbody class="ui-sortable" style="min-height: 0px; display: table-row-group;"><tr class="acym__wysid__column__element ui-draggable" style="position: relative; top: inherit; left: inherit; right: inherit; bottom: inherit; height: auto;"><td class="large-12 acym__wysid__column__element__td" style="outline: rgb(0,163,254) dashed 0px; outline-offset: -1px;"><span class="acy-editor__space acy-editor__space--focus" style="display: block; padding: 0px; margin: 0px; height: 10px;"></span></td></tr></tbody></table></th></tr></tbody></table><table class="row acym__wysid__row__element" bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0"><tbody style="background-color: rgb(255, 255, 255);" bgcolor="#ffffff"><tr><th class="small-12 medium-12 large-12 columns"><table class="acym__wysid__column" style="min-height: 0px; display: table;" border="0" cellpadding="0" cellspacing="0"><tbody class="ui-sortable" style="min-height: 0px; display: table-row-group;"><tr class="acym__wysid__column__element ui-draggable" style="position: relative; top: inherit; left: inherit; right: inherit; bottom: inherit; height: auto;"><td class="large-12 acym__wysid__column__element__td" style="outline: rgb(0, 163, 254) dashed 0px; outline-offset: -1px;"><div class="acym__wysid__tinymce--text mce-content-body" style="position: relative;" spellcheck="false">';
+        $begining = '<div id="acym__wysid__template" class="cell"><table class="body"><tbody><tr><td align="center" class="center acym__wysid__template__content" valign="top" style="background-color: rgb(239, 239, 239); padding: 40px 0 120px 0;"><center><table align="center" border="0" cellpadding="0" cellspacing="0"><tbody><tr><td class="acym__wysid__row ui-droppable ui-sortable" style="min-height: 0px; display: table-cell;"><table class="row acym__wysid__row__element" bgcolor="#dadada" border="0" cellpadding="0" cellspacing="0"><tbody style="background-color: rgb(218,218,218);" bgcolor="#ffffff"><tr><th class="small-12 medium-12 large-12 columns acym__wysid__row__element__th"><table class="acym__wysid__column" style="min-height: 0px; display: table;" border="0" cellpadding="0" cellspacing="0"><tbody class="ui-sortable" style="min-height: 0px; display: table-row-group;"><tr class="acym__wysid__column__element ui-draggable" style="position: relative; top: inherit; left: inherit; right: inherit; bottom: inherit; height: auto;"><td class="large-12 acym__wysid__column__element__td" style="outline: rgb(0,163,254) dashed 0px; outline-offset: -1px;"><span class="acy-editor__space acy-editor__space--focus" style="display: block; padding: 0px; margin: 0px; height: 10px;"></span></td></tr></tbody></table></th></tr></tbody></table><table class="row acym__wysid__row__element" bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0"><tbody style="background-color: transparent;" bgcolor="#ffffff"><tr><th class="small-12 medium-12 large-12 columns"><table class="acym__wysid__column" style="min-height: 0px; display: table;" border="0" cellpadding="0" cellspacing="0"><tbody class="ui-sortable" style="min-height: 0px; display: table-row-group;"><tr class="acym__wysid__column__element ui-draggable" style="position: relative; top: inherit; left: inherit; right: inherit; bottom: inherit; height: auto;"><td class="large-12 acym__wysid__column__element__td" style="outline: rgb(0, 163, 254) dashed 0px; outline-offset: -1px;"><div class="acym__wysid__tinymce--text mce-content-body" style="position: relative;" spellcheck="false">';
         $ending = '</div></td></tr></tbody></table></th></tr></tbody></table><table class="row acym__wysid__row__element" bgcolor="#dadada" style="position: relative; z-index: 100; top: 0; left: 0;" border="0" cellpadding="0" cellspacing="0"><tbody style="background-color: rgb(218, 218, 218);" bgcolor="#ffffff"><tr><th class="small-12 medium-12 large-12 columns acym__wysid__row__element__th"><table class="acym__wysid__column" style="min-height: 0px; display: table;" border="0" cellpadding="0" cellspacing="0"><tbody class="ui-sortable" style="min-height: 0px; display: table-row-group;"><tr class="acym__wysid__column__element ui-draggable" style="position: relative; top: inherit; left: inherit; right: inherit; bottom: inherit; height: auto;"><td class="large-12 acym__wysid__column__element__td" style="outline: rgb(0, 163, 254) dashed 0px; outline-offset: -1px;"><span class="acy-editor__space acy-editor__space--focus" style="display: block; padding: 0px; margin: 0px; height: 10px;"></span></td></tr></tbody></table></th></tr></tbody></table></td></tr></tbody></table></center></td></tr></tbody></table></div>';
 
         return $begining.$content.$ending;
@@ -681,7 +682,6 @@ class UpdateHelper extends acymObject
             $mail->type = $mailClass::TYPE_OVERRIDE;
             $mail->subject = $oneOverride['new_subject'];
             $mail->body = $this->getFormatedNotification($oneOverride['new_body']);
-            $mail->template = 0;
             $mail->drag_editor = 1;
             $mail->creator_id = $currentUserId;
             $mailId = $mailClass->save($mail);
@@ -694,7 +694,7 @@ class UpdateHelper extends acymObject
             $override->source = $oneOverride['source'];
             $override->active = 0;
             $override->base_subject = json_encode($oneOverride['base_subject']);
-            $override->base_body = json_encode($oneOverride['base_body']);
+            $override->base_body = empty($oneOverride['base_body']) ? '' : json_encode($oneOverride['base_body']);
 
             $overrideClass->save($override);
         }

@@ -343,6 +343,7 @@ class acym_subscriptionform_widget extends WP_Widget
         $params = new acymParameter($instance);
         acym_initModule($params);
 
+        if(!isset($instance['title'])) $instance['title'] = '';
         $title = apply_filters('widget_title', $instance['title']);
         if (!empty($title)) {
             echo $args['before_title'].$title.$args['after_title'];
@@ -368,7 +369,7 @@ class acym_subscriptionform_widget extends WP_Widget
         $listClass = new ListClass();
         $fieldClass = new FieldClass();
 
-        $allLists = $listClass->getAllWithoutManagement();
+        $allLists = $listClass->getAllWithoutManagement(true);
         $visibleLists = array_intersect($visibleLists, array_keys($allLists));
         $hiddenLists = array_intersect($hiddenLists, array_keys($allLists));
 

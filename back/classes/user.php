@@ -5,7 +5,6 @@ namespace AcyMailing\Classes;
 use AcyMailing\Helpers\MailerHelper;
 use AcyMailing\Helpers\PaginationHelper;
 use AcyMailing\Libraries\acymClass;
-use AcyMailing\Classes\MailClass;
 
 class UserClass extends acymClass
 {
@@ -28,20 +27,8 @@ class UserClass extends acymClass
     var $subscribed = false;
     var $confirmationSentError;
 
-    public function __construct()
-    {
-        parent::__construct();
-
-        // Make sure the imported users have a key
-        $missingKey = acym_loadResultArray('SELECT `id` FROM #__acym_user WHERE `key` IS NULL LIMIT 5000');
-        if (!empty($missingKey)) {
-            $newValues = [];
-            foreach ($missingKey as $oneUserId) {
-                $newValues[] = intval($oneUserId).','.acym_escapeDB(acym_generateKey(14));
-            }
-            acym_query('INSERT INTO #__acym_user (`id`, `key`) VALUES ('.implode('),(', $newValues).') ON DUPLICATE KEY UPDATE `key` = VALUES(`key`)');
-        }
-    }
+    // For integration, for example someone is activating user subscription on member ship pro on the joomla backend and he needs to send the confirmation emails
+    var $forceConfAdmin = false;
 
     /**
      * Get users depending on filters (search, status, pagination)
@@ -289,12 +276,13 @@ class UserClass extends acymClass
      * @param string  $key
      * @param boolean $includeManagement
      * @param boolean $visible
+     * @param boolean $needTranslation
      *
      * @return array
      */
-    public function getUserSubscriptionById($userId, $key = 'id', $includeManagement = false, $visible = false)
+    public function getUserSubscriptionById($userId, $key = 'id', $includeManagement = false, $visible = false, $needTranslation = false)
     {
-        $query = 'SELECT list.id, list.name, list.color, list.active, list.visible, list.description, userlist.status, userlist.subscription_date, userlist.unsubscribe_date 
+        $query = 'SELECT list.id, list.translation, list.name, list.color, list.active, list.visible, list.description, userlist.status, userlist.subscription_date, userlist.unsubscribe_date 
                 FROM #__acym_list AS list 
                 JOIN #__acym_user_has_list AS userlist 
                     ON list.id = userlist.list_id 
@@ -310,25 +298,41 @@ class UserClass extends acymClass
             $query .= ' AND list.visible = 1';
         }
 
-        return acym_loadObjectList($query, $key);
+        $lists = acym_loadObjectList($query, $key);
+
+        if (acym_isMultilingual() && $needTranslation) {
+            $listClass = new ListClass();
+            $lists = $listClass->getTranslatedNameDescription($lists);
+        }
+
+        return $lists;
     }
 
     /**
      * Get the subscription of one user
      *
-     * @param int $userId
+     * @param int     $userId
+     * @param string  $key
+     * @param boolean $needTranslation
      *
      * @return array
      */
-    public function getAllListsUserSubscriptionById($userId, $key = 'id')
+    public function getAllListsUserSubscriptionById($userId, $key = 'id', $needTranslation = false)
     {
-        $query = 'SELECT list.id, list.name, list.color, list.active, list.visible, userlist.status, userlist.subscription_date, userlist.unsubscribe_date 
+        $query = 'SELECT list.id, list.translation, list.name, list.color, list.active, list.visible, userlist.status, userlist.subscription_date, userlist.unsubscribe_date 
                 FROM #__acym_list AS list 
                 LEFT JOIN #__acym_user_has_list AS userlist 
                     ON list.id = userlist.list_id 
                     AND userlist.user_id = '.intval($userId);
 
-        return acym_loadObjectList($query, $key);
+        $lists = acym_loadObjectList($query, $key);
+
+        if (acym_isMultilingual() && $needTranslation) {
+            $listClass = new ListClass();
+            $lists = $listClass->getTranslatedNameDescription($lists);
+        }
+
+        return $lists;
     }
 
     /**
@@ -837,7 +841,7 @@ class UserClass extends acymClass
             }
             $existUser = acym_loadObject('SELECT * FROM #__acym_user WHERE email = '.acym_escapeDB($user->email).' AND id != '.intval($user->id));
             if (!empty($existUser->id)) {
-                if (!$this->allowModif && !$allowSubscriptionModifications) {
+                if (!$this->allowModif && !$allowUserModifications) {
                     $this->errors[] = acym_translation('ACYM_ADDRESS_TAKEN');
 
                     return false;
@@ -936,7 +940,7 @@ class UserClass extends acymClass
     {
         if (!$this->forceConf && !$this->sendConf) return true;
 
-        if ($this->config->get('require_confirmation', 1) != 1 || acym_isAdmin()) return false;
+        if ($this->config->get('require_confirmation', 1) != 1 || (acym_isAdmin() && !$this->forceConfAdmin)) return false;
 
         $myuser = $this->getOneById($userID);
 
@@ -1119,7 +1123,7 @@ class UserClass extends acymClass
 
         // Force trigger confirmation process on cms user confirmation (send welcome emails, automation, save history...)
         $confirmationRequired = $this->config->get('require_confirmation', 1);
-        if (!$isnew && !$regacyForceConf && $user['block'] == 0 && $oldUser['block'] == 1 && $confirmationRequired == 1) {
+        if (!$isnew && !$regacyForceConf && $user['block'] == 0 && !empty($oldUser['block']) && $confirmationRequired == 1) {
             $this->confirm($id);
         }
 
@@ -1279,5 +1283,25 @@ class UserClass extends acymClass
         $mailClass = new MailClass();
 
         return $mailClass->decode($mailHistory);
+    }
+
+    public function deleteHistoryPeriod()
+    {
+        if (empty($this->config->get('delete_user_history_enabled', 0))) return;
+        $deleteOverSecond = $this->config->get('delete_user_history', 0);
+        if (empty($deleteOverSecond)) return;
+        $date = time() - $deleteOverSecond;
+
+        $query = 'DELETE FROM #__acym_history WHERE date < '.intval($date);
+
+        try {
+            $status = acym_query($query);
+            $message = empty($status) ? '' : acym_translationSprintf('ACYM_DELETE_X_ROWS_TABLE_X', $status, strtolower(acym_translation('ACYM_USER_HISTORY')));
+        } catch (\Exception $e) {
+            $status = false;
+            $message = $e->getMessage();
+        }
+
+        return ['status' => $status !== false, 'message' => $message];
     }
 }

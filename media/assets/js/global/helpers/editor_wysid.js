@@ -13,6 +13,7 @@ jQuery(document).ready(function ($) {
                 jQuery('#acym__wysid__modal__dynamic-text').insertAfter('#acym__walkthrough__email');
             }
 
+            acym_editorWysidImage.setChangeBuiltWithImage();
             acym_editorWysidDragDrop.setFixJquerySortableWYSID();
             acym_editorWysidDragDrop.setNewColumnElementDraggableWYSID();
             acym_editorWysidDragDrop.setNewRowElementDraggableWYSID();
@@ -143,12 +144,16 @@ jQuery(document).ready(function ($) {
                 acym_helperEditorWysid.setSizeEditorWYSID();
             });
 
-            let adminHeight = 0;
+            let adminHeight;
 
-            if (ACYM_CMS == 'wordpress') {
+            if (ACYM_CMS === 'wordpress') {
                 adminHeight = jQuery('#wpadminbar').innerHeight();
             } else {
-                adminHeight = jQuery('nav.navbar').innerHeight() + jQuery('#status').innerHeight();
+                if (ACYM_J40) {
+                    adminHeight = 0;
+                } else {
+                    adminHeight = jQuery('nav.navbar').innerHeight() + jQuery('#status').innerHeight();
+                }
             }
 
             let wrapperPaddingTop = jQuery(window).width() > 639 ? 56 : 0; //TODO replace with wrapper padding + topbar margin etc

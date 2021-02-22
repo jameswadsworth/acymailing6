@@ -13,7 +13,7 @@ class plgAcymSubscription extends acymPlugin
     const FOLLOWTRIGGER = 'user_subscribe';
 
     //Set this variable to true once the list unsubscribe is added so we don't add it twice
-    var $listunsubscribe = false;
+    var $addedListUnsubscribe = [];
     //Keep all lists and IDs for users so we don't do the query twice
     var $lists = [];
     //Keep all listsowner information so we don't do the query again and again
@@ -22,8 +22,8 @@ class plgAcymSubscription extends acymPlugin
     var $listsinfo = [];
     //Campaigns list
     var $campaigns = [];
-    //Used to know if we should add a List-Unsusbcribe header
-    var $unsubscribeLink = false;
+    //Used to know if we should add a List-Unsubscribe header
+    var $unsubscribeLink = [];
 
     public function __construct()
     {
@@ -196,15 +196,15 @@ class plgAcymSubscription extends acymPlugin
         $this->_replacelisttags($email, $user, $send);
 
         //We add a list-unsubscribe automatically if there is a unsubscribe link.
-        if (empty($user) || !$this->unsubscribeLink || $this->listunsubscribe || !method_exists($email, 'addCustomHeader')) {
+        if (empty($user->id) || empty($this->unsubscribeLink[$email->id]) || !empty($this->addedListUnsubscribe[$email->id][$user->id]) || !method_exists($email, 'addCustomHeader')) {
             return;
         }
 
-        $link = 'frontusers&subid='.intval($user->id).'&task=unsubscribe&id='.$email->id.'&key='.urlencode($user->key).'&'.acym_noTemplate();
+        $link = 'frontusers&id='.intval($user->id).'&task=unsubscribe&mail_id='.$email->id.'&key='.urlencode($user->key).'&'.acym_noTemplate();
         $link .= $this->getLanguage($email->links_language);
         $myLink = acym_frontendLink($link);
 
-        $this->listunsubscribe = true;
+        $this->addedListUnsubscribe[$email->id][$user->id] = true;
         //We add a mailto as well to handle list unsubscribe feedback loop by GMail so we can receive complaints
         if (!empty($email->replyemail)) {
             $mailto = $email->replyemail;
@@ -539,7 +539,7 @@ class plgAcymSubscription extends acymPlugin
         if (!$found) return;
 
         $tags = [];
-        $this->listunsubscribe = false;
+        $this->addedListUnsubscribe[$email->id] = [];
         foreach ($results as $var => $allresults) {
             foreach ($allresults[0] as $i => $oneTag) {
                 //Don't need to process twice a tag we already have!
@@ -582,7 +582,7 @@ class plgAcymSubscription extends acymPlugin
             return '<a style="text-decoration:none;" target="_blank" href="'.$myLink.'"><span class="acym_subscribe">'.$allresults[2][$i].'</span></a>';
         } else {
             // unsubscribe link
-            $this->unsubscribeLink = true;
+            $this->unsubscribeLink[$email->id] = true;
 
             $myLink = acym_frontendLink('frontusers&task=unsubscribe&id={subtag:id}&key={subtag:key|urlencode}&'.acym_noTemplate().$lang.'&mail_id='.$email->id);
             if (empty($allresults[2][$i])) {
@@ -736,7 +736,7 @@ class plgAcymSubscription extends acymPlugin
 
         if ($this->config->get('require_confirmation', '1') === '1') {
             $filters['unconfirmed'] = new stdClass();
-            $filters['unconfirmed']->name = acym_translation('ACYM_UNCONFIRMED_USERS');
+            $filters['unconfirmed']->name = acym_translation('ACYM_UNCONFIRMED_SUBSCRIBERS');
             // The count results doesn't show up if there are no options
             $filters['unconfirmed']->option = '<input type="hidden" name="acym_action[filters][__numor__][__numand__][unconfirmed][countresults]" />';
         }

@@ -29,20 +29,19 @@ class plgAcymPostmark extends acymPlugin
         ?>
 		<div class="send_settings cell grid-x acym_vcenter" id="<?php echo self::SENDING_METHOD_ID; ?>_settings">
 			<div class="cell grid-x acym_vcenter acym__sending__methods__one__settings">
-				<label class="cell" for="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key">
+				<label class="cell shrink margin-right-1" for="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key">
                     <?php echo acym_translationSprintf(
                         'ACYM_SENDING_METHOD_API_KEY',
                         self::SENDING_METHOD_NAME
                     ); ?>
 				</label>
+                <?php echo $this->getLinks('https://account.postmarkapp.com/sign_up', 'https://postmarkapp.com/pricing'); ?>
 				<input type="text"
 					   id="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key"
 					   value="<?php echo empty($data['tab']->config->values[self::SENDING_METHOD_ID.'_api_key']) ? '' : $data['tab']->config->values[self::SENDING_METHOD_ID.'_api_key']->value; ?>"
 					   name="config[<?php echo self::SENDING_METHOD_ID; ?>_api_key]"
 					   class="cell margin-right-1 acym__configuration__mail__settings__text">
-				<div class="cell grid-x margin-top-1">
-                    <?php echo $this->getTestCredentialsSendingMethodButton(self::SENDING_METHOD_ID); ?>
-				</div>
+                <?php echo $this->getTestCredentialsSendingMethodButton(self::SENDING_METHOD_ID); ?>
 			</div>
 		</div>
         <?php

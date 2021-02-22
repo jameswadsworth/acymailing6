@@ -52,6 +52,8 @@ function acym_modalInclude($button, $file, $id, $data, $attributes = '', $classM
         $id = 'acymodal_'.rand(1000, 9000);
     }
 
+    $dataModal = $data;
+
     $modal = '<div data-open="'.acym_escape($id).'" '.$containerAttributes.'>'.$button;
     $modal .= '<div class="reveal '.$classModal.'" id="'.acym_escape($id).'" '.$attributes.' data-reveal>';
     ob_start();

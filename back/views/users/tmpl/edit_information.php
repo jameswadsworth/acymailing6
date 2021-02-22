@@ -6,24 +6,6 @@
             echo $field->html;
         }
     }
-
-    if (acym_isMultilingual()) {
-        ?>
-		<div class="cell grid-x margin-top-1">
-			<label for="userlanguage" class="cell large-6 xlarge-5"><?php echo acym_translation('ACYM_LANGUAGE'); ?></label>
-			<div class="cell large-6 xlarge-7">
-                <?php
-                echo acym_select(
-                    $data['languages'],
-                    'user[language]',
-                    $data['user-information']->language,
-                    ['class' => 'acym__select']
-                );
-                ?>
-			</div>
-		</div>
-        <?php
-    }
     ?>
 	<div class="cell grid-x margin-top-1">
         <?php echo acym_switch('user[active]', $data['user-information']->active, acym_translation('ACYM_ACTIVE'), []); ?>
@@ -33,8 +15,8 @@
 	</div>
 	<div class="cell grid-x">
         <?php
-        $label = acym_translation('ACYM_TRACK_THIS_USER');
-        $label .= acym_info('ACYM_TRACK_THIS_USER_DESC');
+        $label = acym_translation('ACYM_TRACK_THIS_SUBSCRIBER');
+        $label .= acym_info('ACYM_TRACK_THIS_SUBSCRIBER_DESC');
         echo acym_switch('user[tracking]', $data['user-information']->tracking, $label, []); ?>
 	</div>
     <?php if (!empty($data['user-information']->source)) { ?>

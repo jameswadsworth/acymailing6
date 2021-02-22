@@ -337,7 +337,7 @@ class plgAcymUser extends acymPlugin
         $conditions['user']['acy_cmsfield']->option .= '<input class="intext_input_automation cell" type="text" name="acym_condition[conditions][__numor__][__numand__][acy_cmsfield][value]">';
 
         $conditions['classic']['acy_totaluser'] = new stdClass();
-        $conditions['classic']['acy_totaluser']->name = acym_translation('ACYM_NUMBER_OF_USERS');
+        $conditions['classic']['acy_totaluser']->name = acym_translation('ACYM_NUMBER_OF_SUBSCRIBERS');
         $conditions['classic']['acy_totaluser']->option = '<div class="cell shrink acym__automation__inner__text">'.acym_translation('ACYM_THERE_IS').'</div>';
         $conditions['classic']['acy_totaluser']->option .= '<div class="intext_select_automation cell">';
         $conditions['classic']['acy_totaluser']->option .= acym_select(

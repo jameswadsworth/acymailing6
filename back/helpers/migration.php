@@ -143,7 +143,6 @@ class MigrationHelper extends acymObject
             'smtp_secured' => 'smtp_secured',
             'smtp_username' => 'smtp_username',
             'special_chars' => 'special_chars',
-            'ssl_links' => 'use_https',
         ];
 
         //Queue Process
@@ -357,10 +356,9 @@ class MigrationHelper extends acymObject
                         acym_escapeDB(acym_date('now', 'Y-m-d H:i:s', false)),
                         '0',
                         '0',
-                        acym_escapeDB($mailClass::TYPE_STANDARD),
+                        acym_escapeDB($mailClass::TYPE_TEMPLATE),
                         acym_escapeDB(empty($oneTemplate->body) ? '' : $oneTemplate->body),
                         acym_escapeDB($oneTemplate->subject),
-                        '1',
                         acym_escapeDB($oneTemplate->fromname),
                         acym_escapeDB($oneTemplate->fromemail),
                         acym_escapeDB($oneTemplate->replyname),
@@ -375,7 +373,7 @@ class MigrationHelper extends acymObject
             return true;
         }
 
-        $queryInsert = 'INSERT INTO #__acym_mail (`name`, `creation_date`, `drag_editor`, `library`, `type`, `body`, `subject`, `template`, `from_name`, `from_email`, `reply_to_name`, `reply_to_email`, `stylesheet`, `creator_id`) VALUES '.implode(
+        $queryInsert = 'INSERT INTO #__acym_mail (`name`, `creation_date`, `drag_editor`, `library`, `type`, `body`, `subject`, `from_name`, `from_email`, `reply_to_name`, `reply_to_email`, `stylesheet`, `creator_id`) VALUES '.implode(
                 ',',
                 $valuesToInsert
             ).';';
@@ -691,7 +689,6 @@ class MigrationHelper extends acymObject
                 'type' => acym_escapeDB($mailType),
                 'body' => acym_escapeDB($oneMail->body),
                 'subject' => acym_escapeDB($oneMail->subject),
-                'template' => in_array($mailType, [$mailClass::TYPE_WELCOME, $mailClass::TYPE_UNSUBSCRIBE]) ? 1 : 0,
                 'from_name' => acym_escapeDB($oneMail->fromname),
                 'from_email' => acym_escapeDB($oneMail->fromemail),
                 'reply_to_name' => acym_escapeDB($oneMail->replyname),
@@ -732,7 +729,7 @@ class MigrationHelper extends acymObject
             return true;
         }
 
-        $queryMailsInsert = 'INSERT INTO #__acym_mail (`id`, `name`, `creation_date`, `drag_editor`, `library`, `type`, `body`, `subject`, `template`, `from_name`, `from_email`, `reply_to_name`, `reply_to_email`, `bcc`, `stylesheet`, `creator_id`) VALUES '.implode(
+        $queryMailsInsert = 'INSERT INTO #__acym_mail (`id`, `name`, `creation_date`, `drag_editor`, `library`, `type`, `body`, `subject`, `from_name`, `from_email`, `reply_to_name`, `reply_to_email`, `bcc`, `stylesheet`, `creator_id`) VALUES '.implode(
                 ',',
                 $mailsToInsert
             ).';';

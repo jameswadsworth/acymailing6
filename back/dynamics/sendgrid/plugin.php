@@ -5,13 +5,13 @@ use AcyMailing\Libraries\acymPlugin;
 class plgAcymSendgrid extends acymPlugin
 {
     const SENDING_METHOD_ID = 'sendgrid';
-    const SENDING_METHOD_NAME = 'Sendgrid';
+    const SENDING_METHOD_NAME = 'SendGrid';
     const SENDING_METHOD_API_URL = 'https://api.sendgrid.com/v3/';
 
     public function __construct()
     {
         parent::__construct();
-        $this->pluginDescription->name = 'Sendgrid';
+        $this->pluginDescription->name = 'SendGrid';
     }
 
     public function onAcymGetSendingMethods(&$data, $isMailer = false)
@@ -28,20 +28,20 @@ class plgAcymSendgrid extends acymPlugin
         ?>
 		<div class="send_settings cell grid-x acym_vcenter" id="<?php echo self::SENDING_METHOD_ID; ?>_settings">
 			<div class="cell grid-x acym_vcenter acym__sending__methods__one__settings">
-				<label class="cell" for="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key">
+				<label class="cell shrink margin-right-1" for="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key">
                     <?php echo acym_translationSprintf(
                         'ACYM_SENDING_METHOD_API_KEY',
                         self::SENDING_METHOD_NAME
                     ); ?>
 				</label>
+                <?php echo $this->getLinks('https://signup.sendgrid.com/', 'https://sendgrid.com/pricing/'); ?>
 				<input type="text"
 					   id="<?php echo self::SENDING_METHOD_ID; ?>_settings_api-key"
 					   value="<?php echo empty($data['tab']->config->values[self::SENDING_METHOD_ID.'_api_key']) ? '' : $data['tab']->config->values[self::SENDING_METHOD_ID.'_api_key']->value; ?>"
 					   name="config[<?php echo self::SENDING_METHOD_ID; ?>_api_key]"
 					   class="cell margin-right-1 acym__configuration__mail__settings__text">
-				<div class="cell grid-x margin-top-1">
-                    <?php echo $this->getTestCredentialsSendingMethodButton(self::SENDING_METHOD_ID); ?>
-				</div>
+                <?php echo $this->getTestCredentialsSendingMethodButton(self::SENDING_METHOD_ID); ?>
+                <?php echo $this->getCopySettingsButton($data, self::SENDING_METHOD_ID, 'wp_mail_smtp'); ?>
 			</div>
 		</div>
         <?php
@@ -180,5 +180,22 @@ class plgAcymSendgrid extends acymPlugin
     public function onAcymSendingMethodEmbedImage(&$data)
     {
         $data['embedImage'][self::SENDING_METHOD_ID] = false;
+    }
+
+    public function onAcymGetSettingsSendingMethodFromPlugin(&$data, $plugin, $method)
+    {
+        if ($method != self::SENDING_METHOD_ID) return;
+
+        //__START__wordpress_
+        if (ACYM_CMS == 'wordpress' && $plugin == 'wp_mail_smtp') {
+            $wpMailSmtpSetting = get_option('wp_mail_smtp', '');
+            if (empty($wpMailSmtpSetting) || empty($wpMailSmtpSetting['sendgrid']) || (!empty($wpMailSmtpSetting['sendgrid'] && empty($wpMailSmtpSetting['sendgrid']['api_key'])))) {
+                return;
+            }
+
+            $data['sendgrid_api_key'] = $wpMailSmtpSetting['sendgrid']['api_key'];
+        }
+        //__END__wordpress_
+
     }
 }

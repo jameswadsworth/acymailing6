@@ -144,6 +144,15 @@ define(
                 'downloadlink' => 'https://wordpress.org/plugins/acymailing-integration-for-ultimate-member/',
             ],
             (object)[
+                'name' => 'Universal filter',
+                'description' => '- Filter AcyMailing subscribers based on any data from your database<br />- Filter users based on email addresses in a specified text',
+                'image' => 'universalfilter.png',
+                'level' => 'starter',
+                'documentation' => ACYM_DOCUMENTATION.'addons/all-cms-add-ons/universal-filter',
+                'category' => 'User management',
+                'downloadlink' => 'https://wordpress.org/plugins/acymailing-universal-filter/',
+            ],
+            (object)[
                 'name' => 'WooCommerce',
                 'description' => '- Insert products and generate coupons in your emails<br />- Filter users based on their purchases',
                 'image' => 'woocommerce.png',

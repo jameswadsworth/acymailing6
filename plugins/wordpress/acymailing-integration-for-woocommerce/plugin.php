@@ -1,13 +1,16 @@
 <?php
 
 use AcyMailing\Classes\FollowupClass;
+use AcyMailing\Classes\MailClass;
+use AcyMailing\Classes\OverrideClass;
 use AcyMailing\Controllers\CampaignsController;
+use AcyMailing\Helpers\PluginHelper;
 use AcyMailing\Libraries\acymPlugin;
 use AcyMailing\Helpers\TabHelper;
 use AcyMailing\Classes\UserStatClass;
 use AcyMailing\Classes\UserClass;
 use AcyMailing\Classes\AutomationClass;
-use AcyMailing\Classes\CampaignClass;
+use AcyMailing\Types\OperatorinType;
 
 class plgAcymWoocommerce extends acymPlugin
 {
@@ -235,6 +238,7 @@ class plgAcymWoocommerce extends acymPlugin
                 'type' => 'date',
                 'name' => 'end',
                 'default' => '',
+                'relativeDate' => '+',
             ],
             [
                 'title' => __('Discount type', 'woocommerce'),
@@ -355,53 +359,76 @@ class plgAcymWoocommerce extends acymPlugin
             ],
         ];
 
-        echo $this->displaySelectionZone($this->lastPurchasedContentInsert());
+        echo $this->displaySelectionZone($this->lastOrCartContentInsert('last'));
         echo $this->pluginHelper->displayOptions($lastPurchasedOptions, $identifier, 'grouped', $this->defaultValues);
 
+        $tabHelper->endTab();
+
+        // Products in cart
+        $identifier = 'cart'.$this->name;
+        $tabHelper->startTab(
+            acym_translation('ACYM_CART_PRODUCTS'),
+            !empty($this->defaultValues->defaultPluginTab) && $identifier === $this->defaultValues->defaultPluginTab
+        );
+        echo $this->displaySelectionZone($this->lastOrCartContentInsert('cart'));
+        echo $this->pluginHelper->displayOptions($lastPurchasedOptions, $identifier, 'grouped', $this->defaultValues);
         $tabHelper->endTab();
 
         $tabHelper->display('plugin');
     }
 
-    private function lastPurchasedContentInsert()
+    private function lastOrCartContentInsert($type = 'last')
     {
-        $identifier = 'last'.$this->name;
+        if ($type == 'last') {
+            $identifier = 'last'.$this->name;
+            $partId = 'last__purchased';
+            $endIdMin = '';
+            $endIdMax = '';
+        } elseif ($type == 'cart') {
+            $identifier = 'cart'.$this->name;
+            $partId = 'cart';
+            $endIdMin = 'min';
+            $endIdMax = 'max';
+        }
+
         $selectedArea = empty($this->defaultValues->id) ? [] : $this->getSelectedArea($this->defaultValues);
+        $this->defaultValues->min = empty($this->defaultValues->min) && $this->defaultValues->min !== '0' ? self::MIN_PRODUCT_DISPLAY_LAST_PURCHASED : $this->defaultValues->min;
+        $this->defaultValues->max = empty($this->defaultValues->max) && $this->defaultValues->max !== '0' ? self::MAX_PRODUCT_DISPLAY_LAST_PURCHASED : $this->defaultValues->max;
         ob_start();
         ?>
 		<div class="cell grid-x">
-			<label for="acym__woocommerce__last__purchased__product__number" class="cell medium-6">
-                <?php echo acym_translation('ACYM_MIN_NB_ELEMENTS').acym_info(acym_translation('ACYM_MIN_NUMBER_OF_PRODUCTS_DESC')); ?>
+			<label for="acym__woocommerce__<?php echo $partId; ?>__product__number<?php echo $endIdMin; ?>" class="cell medium-6">
+                <?php echo acym_translation('ACYM_MIN_NB_ELEMENTS').acym_info('ACYM_MIN_NUMBER_OF_PRODUCTS_DESC'); ?>
 			</label>
 			<input type="number"
-				   id="acym__woocommerce__last__purchased__product__number"
+				   id="acym__woocommerce__<?php echo $partId; ?>__product__number<?php echo $endIdMin; ?>"
 				   class="cell medium-6"
-				   value="<?php echo empty($this->defaultValues->min) ? self::MIN_PRODUCT_DISPLAY_LAST_PURCHASED : $this->defaultValues->min; ?>"
+				   value="<?php echo $this->defaultValues->min; ?>"
 				   name="min"
 				   onchange="addAdditionalInfo<?php echo $identifier; ?>('min', this.value)">
 		</div>
 		<div class="cell grid-x">
-			<label for="acym__woocommerce__last__purchased__product__number" class="cell medium-6">
-                <?php echo acym_translation('ACYM_MAX_NB_ELEMENTS').acym_info(acym_translation('ACYM_MAX_NUMBER_OF_PRODUCTS_DESC')); ?>
+			<label for="acym__woocommerce__<?php echo $partId; ?>__product__number<?php echo $endIdMax; ?>" class="cell medium-6">
+                <?php echo acym_translation('ACYM_MAX_NB_ELEMENTS').acym_info('ACYM_MAX_NUMBER_OF_PRODUCTS_DESC'); ?>
 			</label>
 			<input type="number"
-				   id="acym__woocommerce__last__purchased__product__number"
+				   id="acym__woocommerce__<?php echo $partId; ?>__product__number<?php echo $endIdMax; ?>"
 				   class="cell medium-6"
-				   value="<?php echo empty($this->defaultValues->max) ? self::MAX_PRODUCT_DISPLAY_LAST_PURCHASED : $this->defaultValues->max; ?>"
+				   value="<?php echo $this->defaultValues->max; ?>"
 				   name="max"
 				   onchange="addAdditionalInfo<?php echo $identifier; ?>('max', this.value)">
 		</div>
 		<div class="cell grid-x">
-			<label for="acym__woocommerce__last__purchased__cat" class="cell medium-6">
-                <?php echo acym_translation('ACYM_CATEGORY_FILTER').acym_info(acym_translation('ACYM_CATEGORY_FILTER_DESC')); ?>
+			<label for="acym__woocommerce__<?php echo $partId; ?>__cat" class="cell medium-6">
+                <?php echo acym_translation('ACYM_CATEGORY_FILTER').acym_info('ACYM_CATEGORY_FILTER_DESC'); ?>
 			</label>
-			<div class="cell medium-6 acym__woocommerce__last__purchased__cat__container">
+			<div class="cell medium-6 acym__woocommerce__<?php echo $partId; ?>__cat__container">
                 <?php echo acym_selectMultiple(
                     $this->catvalues,
                     'cat',
                     $selectedArea,
                     [
-                        'id' => 'acym__woocommerce__last__purchased__cat',
+                        'id' => 'acym__woocommerce__'.$partId.'__cat',
                         'onchange' => '_selectedRows'.$identifier.' = {}
                         				for(let option of this.options){
                         					if(option.selected) _selectedRows'.$identifier.'[option.value] = true;
@@ -411,18 +438,30 @@ class plgAcymWoocommerce extends acymPlugin
                 ); ?>
 			</div>
 		</div>
-		<div class="cell grid-x">
-			<label class="cell medium-6">
-                <?php echo acym_translation('ACYM_START_DATE').acym_info(acym_translation('ACYM_START_DATE_PURCHASED_PRODUCT_DESC')); ?>
-			</label>
-            <?php echo acym_dateField(
-                'min_date',
-                empty($this->defaultValues->min_date) ? '' : $this->defaultValues->min_date,
-                'cell medium-6',
-                'onchange="addAdditionalInfo'.$identifier.'(\'min_date\', this.value)"'
-            ); ?>
-		</div>
+		<script type="text/javascript">
+            var _additionalInfo<?php echo $identifier; ?> = {};
+            <?php
+            echo '_additionalInfo'.$identifier.'[\'min\']='.$this->defaultValues->min.';';
+            echo '_additionalInfo'.$identifier.'[\'max\']='.$this->defaultValues->max.';';
+            ?>
+		</script>
         <?php
+        if ($type == 'last') {
+            ?>
+			<div class="cell grid-x">
+				<label class="cell medium-6">
+                    <?php echo acym_translation('ACYM_START_DATE').acym_info('ACYM_START_DATE_PURCHASED_PRODUCT_DESC'); ?>
+				</label>
+                <?php echo acym_dateField(
+                    'min_date',
+                    empty($this->defaultValues->min_date) ? '' : $this->defaultValues->min_date,
+                    'cell medium-6',
+                    'onchange="addAdditionalInfo'.$identifier.'(\'min_date\', this.value)"'
+                ); ?>
+			</div>
+            <?php
+        }
+
         return ob_get_clean();
     }
 
@@ -478,7 +517,9 @@ class plgAcymWoocommerce extends acymPlugin
 
     public function removeLastGeneratedPreview(&$email)
     {
-        $tags = $this->pluginHelper->extractTags($email, 'last'.$this->name);
+        $tagsLast = $this->pluginHelper->extractTags($email, 'last'.$this->name);
+        $tagsCart = $this->pluginHelper->extractTags($email, 'cart'.$this->name);
+        $tags = array_merge($tagsLast, $tagsCart);
 
         if (empty($tags)) return;
 
@@ -618,6 +659,7 @@ class plgAcymWoocommerce extends acymPlugin
 
     public function replaceUserInformation(&$email, &$user, $send = true)
     {
+        if (empty($user)) return;
         $this->_replaceCoupons($email, $user, $send);
         $generated = $this->replaceLastPurchased($email, $user, $send);
         if ($generated === '') {
@@ -628,7 +670,16 @@ class plgAcymWoocommerce extends acymPlugin
             ];
         }
 
-        if ($generated == 1) return ['send' => true, 'emogrifier' => true];
+        $generatedCart = $this->replaceCart($email, $user, $send);
+        if ($generatedCart === '') {
+            return [
+                'send' => false,
+                'emogrifier' => false,
+                'message' => acym_translationSprintf('ACYM_EMAIL_X_NOT_SENT_USER_X_NOT_PRODUCTS_IN_CART', $email->subject, $user->email),
+            ];
+        }
+
+        if ($generated == 1 || $generatedCart == 1) return ['send' => true, 'emogrifier' => true];
     }
 
     private function replaceLastPurchased(&$email, $user, $send)
@@ -643,6 +694,9 @@ class plgAcymWoocommerce extends acymPlugin
             $minAtO = isset($parameter->min) && $parameter->min == 0;
             if (empty($user->cms_id) && !$minAtO) {
                 $this->tags[$oneTag] = '';
+                continue;
+            } elseif (empty($user->cms_id) && $minAtO) {
+                $this->tags[$oneTag] = '_EMPTYSEND_';
                 continue;
             }
             //We get the lastest orders
@@ -668,10 +722,16 @@ class plgAcymWoocommerce extends acymPlugin
             }
             $customer_orders = get_posts($dataQuery);
 
+            if ($minAtO && empty($customer_orders)) {
+                $this->tags[$oneTag] = '_EMPTYSEND_';
+                continue;
+            }
+
             if (empty($customer_orders)) {
                 $this->tags[$oneTag] = '';
                 continue;
             }
+
             //We get the products from the orders
             $product_ids = [];
             foreach ($customer_orders as $customer_order) {
@@ -704,10 +764,16 @@ class plgAcymWoocommerce extends acymPlugin
             $parameter->max = empty($parameter->max) ? self::MAX_PRODUCT_DISPLAY_LAST_PURCHASED : $parameter->max;
 
             $this->tags[$oneTag] = $this->finalizeCategoryFormat($query, $parameter, 'product');
+            if ($this->generateCampaignResult->status == false && $send) $this->tags[$oneTag] = '';
         }
 
         $emptyTags = true;
-        foreach ($this->tags as $tag) {
+        $nbEmptySend = 0;
+        foreach ($this->tags as $i => $tag) {
+            if ($tag == '_EMPTYSEND_') {
+                $nbEmptySend++;
+                $this->tags[$i] = '';
+            }
             if (!empty($tag)) {
                 $emptyTags = false;
                 break;
@@ -715,6 +781,86 @@ class plgAcymWoocommerce extends acymPlugin
         }
 
         $this->pluginHelper->replaceTags($email, $this->tags, true);
+
+        if (count($this->tags) == $nbEmptySend) return 0;
+
+        if ($emptyTags) return '';
+
+        $this->replaceOne($email);
+
+        return 1;
+    }
+
+    private function replaceCart(&$email, $user, $send)
+    {
+        $tags = $this->pluginHelper->extractTags($email, 'cart'.$this->name);
+        $tags = array_merge($tags, $this->pluginHelper->extractTags($email, $this->name.'_tags'));
+
+        if (empty($tags)) return 0;
+
+        // Get user session
+        $sessionHandler = new \WC_Session_Handler();
+        $session = $sessionHandler->get_session(empty($user->cms_id) ? 0 : $user->cms_id);
+        $cart_items = maybe_unserialize($session['cart']);
+
+        $this->tags = [];
+        $noItems = empty($cart_items);
+        foreach ($tags as $oneTag => $parameter) {
+            $minAtO = isset($parameter->min) && $parameter->min == 0;
+            if ((empty($user->cms_id) || $noItems) && !$minAtO) {
+                $this->tags[$oneTag] = '';
+                continue;
+            }
+            if ($minAtO && $noItems) {
+                $this->tags[$oneTag] = '_EMPTYSEND_';
+                continue;
+            }
+            $product_ids = [];
+            foreach ($cart_items as $oneItem) {
+                $product_ids[] = $oneItem['product_id'];
+            }
+
+            $query = 'SELECT DISTINCT product.`ID` FROM #__posts AS product ';
+            //We filters the products if we selected categories
+            if (!empty($parameter->id)) {
+                $selectedArea = $this->getSelectedArea($parameter);
+                if (!empty($selectedArea)) {
+                    $product_ids = array_unique($product_ids);
+                    $query .= ' JOIN #__term_relationships AS cat ON product.ID = cat.object_id 
+                    AND cat.term_taxonomy_id = '.implode(' OR cat.term_taxonomy_id = ', $selectedArea).'';
+                }
+            }
+
+            $query .= ' WHERE product.ID IN ('.implode(',', $product_ids).')';
+
+            if ($send) {
+                $parameter->min = empty($parameter->min) && !$minAtO ? self::MIN_PRODUCT_DISPLAY_LAST_PURCHASED : $parameter->min;
+            } else {
+                $parameter->min = 0;
+            }
+
+            $parameter->max = empty($parameter->max) ? self::MAX_PRODUCT_DISPLAY_LAST_PURCHASED : $parameter->max;
+
+            $this->tags[$oneTag] = $this->finalizeCategoryFormat($query, $parameter, 'product');
+            if ($this->generateCampaignResult->status == false && $send) $this->tags[$oneTag] = '';
+        }
+
+        $emptyTags = true;
+        $nbEmptySend = 0;
+        foreach ($this->tags as $i => $tag) {
+            if ($tag == '_EMPTYSEND_') {
+                $nbEmptySend++;
+                $this->tags[$i] = '';
+            }
+            if (!empty($tag)) {
+                $emptyTags = false;
+                break;
+            }
+        }
+
+        $this->pluginHelper->replaceTags($email, $this->tags, true);
+
+        if (count($this->tags) == $nbEmptySend) return 0;
 
         if ($emptyTags) return '';
 
@@ -885,12 +1031,7 @@ class plgAcymWoocommerce extends acymPlugin
         $ids = $this->getIdsSelectAjax();
 
         if (!empty($ids)) {
-            $cats = acym_loadObjectList(
-                'SELECT term.term_id, term.`name` FROM #__terms AS term JOIN #__term_taxonomy AS tax ON term.term_id = tax.term_id WHERE tax.taxonomy = "product_cat" AND term.term_id IN ("'.implode(
-                    '","',
-                    $ids
-                ).'") ORDER BY term.`name`'
-            );
+            $cats = $this->getWooCategories($ids);
 
             $value = [];
             if (!empty($cats)) {
@@ -903,11 +1044,7 @@ class plgAcymWoocommerce extends acymPlugin
         }
 
         $search = acym_getVar('string', 'search', '');
-        $cats = acym_loadObjectList(
-            'SELECT term.term_id, term.`name` FROM #__terms AS term JOIN #__term_taxonomy AS tax ON term.term_id = tax.term_id WHERE tax.taxonomy = "product_cat" AND term.name LIKE '.acym_escapeDB(
-                '%'.$search.'%'
-            ).' ORDER BY term.`name`'
-        );
+        $cats = $this->getWooCategories([], $search);
         $categories = [];
         foreach ($cats as $oneCat) {
             $categories[] = [$oneCat->term_id, $oneCat->name];
@@ -917,14 +1054,31 @@ class plgAcymWoocommerce extends acymPlugin
         exit;
     }
 
+    private function getWooCategories($ids = [], $nameSearch = '')
+    {
+        $query = 'SELECT term.`term_id`, term.`name` 
+			FROM #__terms AS term 
+			JOIN #__term_taxonomy AS tax 
+				ON term.`term_id` = tax.`term_id` 
+			WHERE tax.`taxonomy` = "product_cat" ';
+        if (!empty($ids)) {
+            acym_arrayToInteger($ids);
+            $query .= ' AND term.`term_id` IN ("'.implode('","', $ids).'")';
+        }
+        if (!empty($nameSearch)) {
+            $query .= ' AND term.`name` LIKE '.acym_escapeDB('%'.$nameSearch.'%');
+        }
+        $query .= ' ORDER BY term.`name`';
+
+        return acym_loadObjectList($query, 'term_id');
+    }
+
     public function onAcymDeclareConditions(&$conditions)
     {
         $categories = [
             'any' => acym_translation('ACYM_ANY_CATEGORY'),
         ];
-        $cats = acym_loadObjectList(
-            'SELECT term.term_id, term.`name` FROM #__terms AS term JOIN #__term_taxonomy AS tax ON term.term_id = tax.term_id WHERE tax.taxonomy = "product_cat" ORDER BY term.`name`'
-        );
+        $cats = $this->getWooCategories();
         foreach ($cats as $oneCat) {
             $categories[$oneCat->term_id] = $oneCat->name;
         }
@@ -1000,86 +1154,88 @@ class plgAcymWoocommerce extends acymPlugin
         );
         $conditions['user']['wooreminder']->option .= '</div>';
         $conditions['user']['wooreminder']->option .= '</div>';
+
+        // WooCommerce Subscriptions filter
+        if (acym_isExtensionActive('woocommerce-subscriptions/woocommerce-subscriptions.php')) {
+            $conditions['user']['woosubscription'] = new stdClass();
+            $conditions['user']['woosubscription']->name = acym_translationSprintf('ACYM_COMBINED_TRANSLATIONS', 'WooCommerce', __('Subscription', 'woocommerce-subscriptions'));
+            $conditions['user']['woosubscription']->option = '<div class="cell grid-x grid-margin-x">';
+
+            $conditions['user']['woosubscription']->option .= '<div class="cell shrink acym_vcenter">';
+            $conditions['user']['woosubscription']->option .= acym_translation('ACYM_HAS_SUBSCRIPTION');
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $conditions['user']['woosubscription']->option .= '<div class="intext_select_automation cell">';
+            $ajaxParams = json_encode(
+                [
+                    'plugin' => 'plgAcymWoocommerce',
+                    'trigger' => 'searchProduct',
+                ]
+            );
+            $conditions['user']['woosubscription']->option .= acym_select(
+                [],
+                'acym_condition[conditions][__numor__][__numand__][woosubscription][product]',
+                null,
+                'class="acym__select acym_select2_ajax" data-placeholder="'.acym_translation('ACYM_ANY_PRODUCT', true).'" data-params="'.acym_escape($ajaxParams).'"'
+            );
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $conditions['user']['woosubscription']->option .= '<div class="intext_select_automation cell">';
+            $conditions['user']['woosubscription']->option .= acym_select(
+                $categories,
+                'acym_condition[conditions][__numor__][__numand__][woosubscription][category]',
+                'any',
+                'class="acym__select"'
+            );
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $subscriptionStatuses = [
+                'any' => acym_translation('ACYM_SUBSCRIPTION_STATUS'),
+            ];
+            $statuses = wcs_get_subscription_statuses();
+            foreach ($statuses as $status => $statusName) {
+                $subscriptionStatuses[$status] = $statusName;
+            }
+            $conditions['user']['woosubscription']->option .= '<div class="intext_select_automation cell">';
+            $conditions['user']['woosubscription']->option .= acym_select(
+                $subscriptionStatuses,
+                'acym_condition[conditions][__numor__][__numand__][woosubscription][status]',
+                'any',
+                'class="acym__select"'
+            );
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $conditions['user']['woosubscription']->option .= '<div class="cell grid-x grid-margin-x">';
+            $conditions['user']['woosubscription']->option .= acym_dateField('acym_condition[conditions][__numor__][__numand__][woosubscription][datemin]', '', 'cell shrink');
+            $conditions['user']['woosubscription']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
+            $conditions['user']['woosubscription']->option .= '<span class="acym_vcenter">'.acym_translation('ACYM_START_DATE').'</span>';
+            $conditions['user']['woosubscription']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
+            $conditions['user']['woosubscription']->option .= acym_dateField('acym_condition[conditions][__numor__][__numand__][woosubscription][datemax]', '', 'cell shrink');
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $conditions['user']['woosubscription']->option .= '<div class="cell grid-x grid-margin-x">';
+            $conditions['user']['woosubscription']->option .= acym_dateField('acym_condition[conditions][__numor__][__numand__][woosubscription][nextdatemin]', '', 'cell shrink');
+            $conditions['user']['woosubscription']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
+            $conditions['user']['woosubscription']->option .= '<span class="acym_vcenter">'.__('Next Payment', 'woocommerce-subscriptions').'</span>';
+            $conditions['user']['woosubscription']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
+            $conditions['user']['woosubscription']->option .= acym_dateField('acym_condition[conditions][__numor__][__numand__][woosubscription][nextdatemax]', '', 'cell shrink');
+            $conditions['user']['woosubscription']->option .= '</div>';
+
+            $conditions['user']['woosubscription']->option .= '<div class="cell grid-x grid-margin-x">';
+            $conditions['user']['woosubscription']->option .= acym_dateField('acym_condition[conditions][__numor__][__numand__][woosubscription][enddatemin]', '', 'cell shrink');
+            $conditions['user']['woosubscription']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
+            $conditions['user']['woosubscription']->option .= '<span class="acym_vcenter">'.acym_translation('ACYM_END_DATE').'</span>';
+            $conditions['user']['woosubscription']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
+            $conditions['user']['woosubscription']->option .= acym_dateField('acym_condition[conditions][__numor__][__numand__][woosubscription][enddatemax]', '', 'cell shrink');
+            $conditions['user']['woosubscription']->option .= '</div>';
+        }
     }
 
     public function onAcymDeclareFilters(&$filters)
     {
-        $categories = [
-            'any' => acym_translation('ACYM_ANY_CATEGORY'),
-        ];
-        $cats = acym_loadObjectList(
-            'SELECT term.term_id, term.`name` FROM #__terms AS term JOIN #__term_taxonomy AS tax ON term.term_id = tax.term_id WHERE tax.taxonomy = "product_cat" ORDER BY term.`name`'
-        );
-        foreach ($cats as $oneCat) {
-            $categories[$oneCat->term_id] = $oneCat->name;
-        }
-
-        $filters['woopurchased'] = new stdClass();
-        $filters['woopurchased']->name = acym_translationSprintf('ACYM_COMBINED_TRANSLATIONS', 'WooCommerce', acym_translation('ACYM_PURCHASED'));
-        $filters['woopurchased']->option = '<div class="cell grid-x grid-margin-x">';
-
-        $filters['woopurchased']->option .= '<div class="cell acym_vcenter shrink">'.acym_translation('ACYM_BOUGHT').'</div>';
-
-        $filters['woopurchased']->option .= '<div class="intext_select_automation cell">';
-        $ajaxParams = json_encode(
-            [
-                'plugin' => 'plgAcymWoocommerce',
-                'trigger' => 'searchProduct',
-            ]
-        );
-        $filters['woopurchased']->option .= acym_select(
-            [],
-            'acym_action[filters][__numor__][__numand__][woopurchased][product]',
-            null,
-            'class="acym__select acym_select2_ajax" data-placeholder="'.acym_translation('ACYM_AT_LEAST_ONE_PRODUCT', true).'" data-params="'.acym_escape($ajaxParams).'"'
-        );
-        $filters['woopurchased']->option .= '</div>';
-
-        $filters['woopurchased']->option .= '<div class="intext_select_automation cell">';
-        $filters['woopurchased']->option .= acym_select($categories, 'acym_action[filters][__numor__][__numand__][woopurchased][category]', 'any', 'class="acym__select"');
-        $filters['woopurchased']->option .= '</div>';
-
-        $filters['woopurchased']->option .= '</div>';
-
-        $filters['woopurchased']->option .= '<div class="cell grid-x grid-margin-x">';
-        $filters['woopurchased']->option .= acym_dateField('acym_action[filters][__numor__][__numand__][woopurchased][datemin]', '', 'cell shrink');
-        $filters['woopurchased']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
-        $filters['woopurchased']->option .= '<span class="acym_vcenter">'.acym_translation('ACYM_DATE_CREATED').'</span>';
-        $filters['woopurchased']->option .= '<span class="acym__title acym__title__secondary acym_vcenter margin-bottom-0 cell shrink"><</span>';
-        $filters['woopurchased']->option .= acym_dateField('acym_action[filters][__numor__][__numand__][woopurchased][datemax]', '', 'cell shrink');
-        $filters['woopurchased']->option .= '</div>';
-
-
-        $paymentMethods = ['any' => acym_translation('ACYM_ANY_PAYMENT_METHOD')];
-        if (function_exists('WC')) {
-            $payments = WC()->payment_gateways()->payment_gateways;
-            foreach ($payments as $oneMethod) {
-                $paymentMethods[$oneMethod->id] = $oneMethod->title;
-            }
-        }
-
-        $filters['wooreminder'] = new stdClass();
-        $filters['wooreminder']->name = acym_translationSprintf('ACYM_COMBINED_TRANSLATIONS', 'WooCommerce', acym_translation('ACYM_REMINDER'));
-        $filters['wooreminder']->option = '<div class="cell">';
-        $filters['wooreminder']->option .= acym_translationSprintf(
-            'ACYM_ORDER_WITH_STATUS',
-            '<input type="number" name="acym_action[filters][__numor__][__numand__][wooreminder][days]" value="1" min="1" class="intext_input"/>',
-            '<div class="intext_select_automation cell margin-right-1">'.acym_select(
-                $this->getOrderStatuses(),
-                'acym_action[filters][__numor__][__numand__][wooreminder][status]',
-                'wc-pending',
-                'class="acym__select"'
-            ).'</div>'
-        );
-        $filters['wooreminder']->option .= '<div class="intext_select_automation cell">';
-        $filters['wooreminder']->option .= acym_select(
-            $paymentMethods,
-            'acym_action[filters][__numor__][__numand__][wooreminder][payment]',
-            'any',
-            'class="acym__select"'
-        );
-        $filters['wooreminder']->option .= '</div>';
-        $filters['wooreminder']->option .= '</div>';
+        $this->filtersFromConditions($filters);
     }
 
     public function onAcymProcessFilterCount_woopurchased(&$query, $options, $num)
@@ -1178,6 +1334,104 @@ class plgAcymWoocommerce extends acymPlugin
         $this->processConditionFilter_wooreminder($query, $options, $num);
     }
 
+    public function onAcymProcessFilterCount_woosubscription(&$query, $options, $num)
+    {
+        $this->onAcymProcessFilter_woosubscription($query, $options, $num);
+
+        return acym_translationSprintf('ACYM_SELECTED_USERS', $query->count());
+    }
+
+    private function processConditionFilter_woosubscription(&$query, $options, $num)
+    {
+        // Retrieve the Acy users with subscriptions
+        $conditions = [];
+        $conditions[] = 'post'.$num.'.post_type = "shop_subscription"';
+
+        $statuses = wcs_get_subscription_statuses();
+        if (!empty($options['status']) && in_array($options['status'], array_keys($statuses))) {
+            $conditions[] = 'post'.$num.'.post_status = '.acym_escapeDB($options['status']);
+        }
+
+        $query->join['woosubscription_post'.$num] = '#__posts AS post'.$num.' ON '.implode(' AND ', $conditions);
+
+        $query->join['woosubscription_user'.$num] = '#__postmeta AS wcsuser'.$num.' 
+        	ON wcsuser'.$num.'.post_id = post'.$num.'.ID 
+        	AND wcsuser'.$num.'.meta_value = user.cms_id 
+        	AND wcsuser'.$num.'.meta_value != 0 
+        	AND wcsuser'.$num.'.meta_key = "_customer_user"';
+
+
+        // Apply condition on product / category linked to the subscription
+        if (!empty($options['product'])) {
+            $query->join['woosubscription_order_items'.$num] = '#__woocommerce_order_items AS woooi'.$num.' 
+            	ON post'.$num.'.ID = woooi'.$num.'.order_id 
+            	AND woooi'.$num.'.order_item_type = "line_item"';
+            $query->join['woosubscription_order_itemmeta'.$num] = '#__woocommerce_order_itemmeta AS woooim'.$num.' 
+            	ON woooi'.$num.'.order_item_id = woooim'.$num.'.order_item_id 
+            	AND woooim'.$num.'.meta_key = "_product_id" 
+            	AND woooim'.$num.'.meta_value = '.intval($options['product']);
+        } elseif (!empty($options['category']) && $options['category'] != 'any') {
+            $query->join['woosubscription_order_items'.$num] = '#__woocommerce_order_items AS woooi'.$num.' 
+            	ON post'.$num.'.ID = woooi'.$num.'.order_id 
+            	AND woooi'.$num.'.order_item_type = "line_item"';
+            $query->join['woosubscription_order_itemmeta'.$num] = '#__woocommerce_order_itemmeta AS woooim'.$num.' 
+            	ON woooi'.$num.'.order_item_id = woooim'.$num.'.order_item_id 
+            	AND woooim'.$num.'.meta_key = "_product_id"';
+            $query->join['woosubscription_cat_map'.$num] = '#__term_relationships AS termrel'.$num.' ON termrel'.$num.'.object_id = woooim'.$num.'.meta_value';
+            $query->join['woosubscription_cat'.$num] = '#__term_taxonomy AS termtax'.$num.' 
+            	ON termtax'.$num.'.term_taxonomy_id = termrel'.$num.'.term_taxonomy_id 
+            	AND termtax'.$num.'.term_id = '.intval($options['category']);
+        }
+
+
+        // Prepare date fields values
+        $dateOptions = ['datemin', 'datemax', 'nextdatemin', 'nextdatemax', 'enddatemin', 'enddatemax'];
+        foreach ($dateOptions as $oneDateOption) {
+            if (empty($options[$oneDateOption])) continue;
+
+            $options[$oneDateOption] = acym_replaceDate($options[$oneDateOption]);
+            if (!is_numeric($options[$oneDateOption])) $options[$oneDateOption] = strtotime($options[$oneDateOption]);
+            if (!empty($options[$oneDateOption])) {
+                $options[$oneDateOption] = acym_date($options[$oneDateOption], 'Y-m-d H:i:s', false);
+            }
+        }
+
+        // Apply date conditions
+        $dateOptions = [
+            'date' => '_schedule_start',
+            'nextdate' => '_schedule_next_payment',
+            'enddate' => '_schedule_end',
+        ];
+        foreach ($dateOptions as $oneDateType => $metaKey) {
+            if (!empty($options[$oneDateType.'min']) || !empty($options[$oneDateType.'max'])) {
+                $query->join['woosubscription_meta'.$oneDateType.$num] = '#__postmeta AS wcs_'.$oneDateType.$num.' 
+					ON wcs_'.$oneDateType.$num.'.post_id = post'.$num.'.ID 
+					AND wcs_'.$oneDateType.$num.'.meta_value != 0 
+					AND wcs_'.$oneDateType.$num.'.meta_key = '.acym_escapeDB($metaKey);
+
+                if (!empty($options[$oneDateType.'min'])) {
+                    $query->join['woosubscription_meta'.$oneDateType.$num] .= ' AND wcs_'.$oneDateType.$num.'.meta_value > '.acym_escapeDB($options[$oneDateType.'min']);
+                }
+
+                if (!empty($options[$oneDateType.'max'])) {
+                    $query->join['woosubscription_meta'.$oneDateType.$num] .= ' AND wcs_'.$oneDateType.$num.'.meta_value < '.acym_escapeDB($options[$oneDateType.'max']);
+                }
+            }
+        }
+    }
+
+    public function onAcymProcessCondition_woosubscription(&$query, $options, $num, &$conditionNotValid)
+    {
+        $this->processConditionFilter_woosubscription($query, $options, $num);
+        $affectedRows = $query->count();
+        if (empty($affectedRows)) $conditionNotValid++;
+    }
+
+    public function onAcymProcessFilter_woosubscription(&$query, $options, $num)
+    {
+        $this->processConditionFilter_woosubscription($query, $options, $num);
+    }
+
     public function onAcymDeclareSummary_conditions(&$automationCondition)
     {
         $this->summaryConditionFilters($automationCondition);
@@ -1214,13 +1468,12 @@ class plgAcymWoocommerce extends acymPlugin
                 $product = $product->post_title;
             }
 
-            $cats = acym_loadObjectList(
-                'SELECT term.`term_id`, term.`name` FROM #__terms AS term JOIN #__term_taxonomy AS tax ON term.term_id = tax.term_id WHERE tax.taxonomy = "product_cat"',
-                'term_id'
-            );
-            $category = empty($cats[$automationCondition['woopurchased']['category']]) ? acym_translation(
-                'ACYM_ANY_CATEGORY'
-            ) : $cats[$automationCondition['woopurchased']['category']]->name;
+            $cats = $this->getWooCategories();
+            if (empty($cats[$automationCondition['woopurchased']['category']])) {
+                $category = acym_translation('ACYM_ANY_CATEGORY');
+            } else {
+                $category = $cats[$automationCondition['woopurchased']['category']]->name;
+            }
 
             $finalText = acym_translationSprintf('ACYM_CONDITION_PURCHASED', $product, $category);
 
@@ -1235,6 +1488,53 @@ class plgAcymWoocommerce extends acymPlugin
 
             if (!empty($dates)) {
                 $finalText .= ' '.implode(' '.acym_translation('ACYM_AND').' ', $dates);
+            }
+
+            $automationCondition = $finalText;
+        }
+
+        if (!empty($automationCondition['woosubscription'])) {
+
+            if (empty($automationCondition['woosubscription']['product'])) {
+                $product = acym_translation('ACYM_AT_LEAST_ONE_PRODUCT');
+            } else {
+                $product = get_post($automationCondition['woosubscription']['product']);
+                $product = $product->post_title;
+            }
+
+            $cats = $this->getWooCategories();
+            if (empty($cats[$automationCondition['woosubscription']['category']])) {
+                $category = acym_translation('ACYM_ANY_CATEGORY');
+            } else {
+                $category = $cats[$automationCondition['woosubscription']['category']]->name;
+            }
+
+            $finalText = acym_translationSprintf('ACYM_HAS_SUBSCRIPTION_SUMMARY', $product, $category);
+            if (!empty($automationCondition['woosubscription']['status']) && $automationCondition['woosubscription']['status'] !== 'any') {
+                $statuses = wcs_get_subscription_statuses();
+                if (in_array($automationCondition['woosubscription']['status'], array_keys($statuses))) {
+                    $finalText .= '<br/>'.acym_translation('ACYM_SUBSCRIPTION_STATUS').' : '.$statuses[$automationCondition['woosubscription']['status']];
+                }
+            }
+
+            $dateOptions = [
+                'date' => acym_translation('ACYM_START_DATE'),
+                'nextdate' => __('Next Payment', 'woocommerce-subscriptions'),
+                'enddate' => acym_translation('ACYM_END_DATE'),
+            ];
+            foreach ($dateOptions as $oneDateOption => $dateLabel) {
+                $dates = [];
+                if (!empty($automationCondition['woosubscription'][$oneDateOption.'min'])) {
+                    $dates[] = acym_translation('ACYM_AFTER').' '.acym_replaceDate($automationCondition['woosubscription'][$oneDateOption.'min'], true);
+                }
+
+                if (!empty($automationCondition['woosubscription'][$oneDateOption.'max'])) {
+                    $dates[] = acym_translation('ACYM_BEFORE').' '.acym_replaceDate($automationCondition['woosubscription'][$oneDateOption.'max'], true);
+                }
+
+                if (!empty($dates)) {
+                    $finalText .= '<br/>'.$dateLabel.' : '.implode(' '.acym_translation('ACYM_AND').' ', $dates);
+                }
             }
 
             $automationCondition = $finalText;
@@ -1293,7 +1593,7 @@ class plgAcymWoocommerce extends acymPlugin
                         echo acym_selectMultiple(
                             $lists,
                             'config[woocommerce_autolists]',
-                            explode(',', $this->config->get('woocommerce_autolists')),
+                            explode(',', $this->config->get('woocommerce_autolists', '')),
                             ['class' => 'acym__select', 'id' => 'acym__config__woocommerce-autolists'],
                             'id',
                             'name'
@@ -1347,6 +1647,7 @@ class plgAcymWoocommerce extends acymPlugin
             add_action('init', [$this, 'trackingWoocommerceAddCookie']);
         }
         add_action('woocommerce_order_status_changed', [$this, 'onWooCommerceOrderStatusChange'], 50, 4);
+        add_filter('woocommerce_mail_callback_params', [$this, 'onWooCommerceEmailSend'], 10, 2);
     }
 
     public function acym_displayTrackingMessage(&$message)
@@ -1874,7 +2175,7 @@ class plgAcymWoocommerce extends acymPlugin
             }
 
             if (empty($condition['products_status']) || empty($condition['products'])) {
-                $return[] = acym_translation('ACYM_EVERY_PRODUCTS');
+                $return[] = acym_translation('ACYM_ANY_PRODUCT');
             } else {
                 $args = [
                     'post__in' => $condition['products'],
@@ -1894,12 +2195,7 @@ class plgAcymWoocommerce extends acymPlugin
             if (empty($condition['categories_status']) || empty($condition['categories'])) {
                 $return[] = acym_translation('ACYM_EVERY_CATEGORIES');
             } else {
-                $cats = acym_loadObjectList(
-                    'SELECT term.term_id, term.`name` FROM #__terms AS term JOIN #__term_taxonomy AS tax ON term.term_id = tax.term_id WHERE tax.taxonomy = "product_cat" AND term.term_id IN ("'.implode(
-                        '","',
-                        $condition['categories']
-                    ).'") ORDER BY term.`name`'
-                );
+                $cats = $this->getWooCategories($condition['categories']);
 
                 $categoriesToDisplay = [];
                 if (!empty($cats)) {
@@ -1914,23 +2210,592 @@ class plgAcymWoocommerce extends acymPlugin
 
     public function onAcymGetEmailOverrides(&$emailsOverride)
     {
-        //$emailsOverride[] = [
-        //    'name' => 'woo-uniqueIdentifier',
-        //    'base_subject' => [
-        //        '[%s] woo subject',
-        //    ],
-        //    'base_body' => [
-        //        'woo body',
-        //    ],
-        //    'new_subject' => 'Awesome new subject',
-        //    'new_body' => 'Awesome new body',
-        //    'description' => 'The super description',
-        //    'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
-        //];
+        $wooOverrides = [
+            [
+                'name' => 'woo-new_order',
+                'base_subject' => [
+                    '[{site_title}]: New order #{order_number}',
+                ],
+                'base_body' => '',
+                'new_subject' => '[{param1}]: New order #{param2}',
+                'new_body' => 'You’ve received the following order from {user_billing_full_name}:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_NEW_ORDER_EMAIL_DESC',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_completed_order',
+                'base_subject' => [
+                    'Your {site_title} order is now complete',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Your {param1} order is now complete',
+                'new_body' => 'Hi {user_billing_full_name},
+			<br>
+			We have finished processing your order.
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_CUSTOMER_COMPLETE_ORDER',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_on_hold_order',
+                'base_subject' => [
+                    'Your {site_title} order has been received!',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Your {param1} order has been received!',
+                'new_body' => 'Hi {user_billing_full_name},
+			<br>
+			Thanks for your order. It’s on-hold until we confirm that payment has been received. In the meantime, here’s a reminder of what you ordered:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_CUSTOMER_ON_HOLD_ORDER',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_invoice',
+                'base_subject' => [
+                    'Invoice for order #{order_number} on {site_title}',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Invoice for order #{param1} on {param2}',
+                'new_body' => 'Hi {user_billing_full_name},
+			<br>
+			Here are the details of your order placed on {order_date_created}}:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_CUSTOMER_INVOICE',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_processing_order',
+                'base_subject' => [
+                    'Your {site_title} order has been received!',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Your {param1} order has been received!',
+                'new_body' => 'Hi {user_billing_full_name},
+			<br>
+			Just to let you know &mdash; we\'ve received your order #{order_number}, and it is now being processed:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_CUSTOMER_PROCESSING_ORDER',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_refunded_order',
+                'base_subject' => [
+                    'Your {site_title} order #{order_number} has been refunded',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Your {param1} order #{param2} has been refunded',
+                'new_body' => 'Hi {user_billing_full_name},
+			<br>
+			Your order on {param1} has been refunded. There are more details below for your reference:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_CUSTOMER_REFUNDED_ORDER',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-failed_order',
+                'base_subject' => [
+                    '[{site_title}]: Order #{order_number} has failed',
+                ],
+                'base_body' => '',
+                'new_subject' => '[{param1}]: Order #{param2} has failed',
+                'new_body' => 'Payment for order {param2} from {user_billing_full_name} has failed. The order was as follows:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_FAILED_ORDER',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-cancelled_order',
+                'base_subject' => [
+                    '[{site_title}]: Order #{order_number} has been cancelled',
+                ],
+                'base_body' => '',
+                'new_subject' => '[{param1}]: Order #{param2} has been cancelled',
+                'new_body' => 'Notification to let you know &mdash; order #{param2} belonging to {user_billing_full_name} has been cancelled:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_WOO_CANCELED_ORDER',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_reset_password',
+                'base_subject' => [
+                    'Password Reset Request for {site_title}',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Password Reset Request for {param1}',
+                'new_body' => 'Hi {user_login},
+            <br>
+            Someone has requested a new password for the following account on {param1}:
+            <br>
+            Username: {user_login}
+            <br>
+            If you didn\'t make this request, just ignore this email. If you\'d like to proceed:
+            <br>
+            <a class="link" href="{link_reset_password}">Click here to reset your password</a>',
+                'description' => 'ACYM_OVERRIDE_DESC_RESET_PASSWORD',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_new_account',
+                'base_subject' => [
+                    'Your {site_title} account has been created!',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Your {param1} account has been created!',
+                'new_body' => 'Hi {user_login},
+            <br>
+            Thanks for creating an account on {param1}. Your username is {user_login}. You can access your account area to view orders, change your password, and more at: {my_account_link}
+            <br>
+            Your password has been automatically generated: {user_password}',
+                'description' => 'ACYM_OVERRIDE_DESC_ADMIN_CREATED',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+            [
+                'name' => 'woo-customer_note',
+                'base_subject' => [
+                    'Note added to your {site_title} order from {order_date}',
+                ],
+                'base_body' => '',
+                'new_subject' => 'Note added to your {param1} order from {param2}',
+                'new_body' => 'Hi {user_billing_full_name},
+            <br>
+            The following note has been added to your order:
+            <br>
+            <blockquote>{customer_note}</blockquote>
+            <br>
+            As a reminder, here are your order details:
+            <br>
+            {woocommerce_email_order_details}
+            <br>
+            {woocommerce_email_order_meta}
+            <br>
+            {woocommerce_email_customer_details}',
+                'description' => 'ACYM_OVERRIDE_DESC_CUSTOMER_NOTE',
+                'source' => self::MAIL_OVERRIDE_SOURCE_NAME,
+            ],
+        ];
+
+        $emailsOverride = array_merge($emailsOverride, $wooOverrides);
+    }
+
+    public function onAcymGetEmailOverridesParams(&$overridesParamsAll)
+    {
+        $overridesParamsAll['woo-new_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'param2' => [
+                'nicename' => acym_translation('ACYM_ORDER_NUMBER'),
+                'description' => acym_translation('ACYM_ORDER_NUMBER_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_completed_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_on_hold_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_invoice'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'param2' => [
+                'nicename' => acym_translation('ACYM_ORDER_NUMBER'),
+                'description' => acym_translation('ACYM_ORDER_NUMBER_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'order_date_created' => [
+                'nicename' => acym_translation('ACYM_ORDER_CREATION_DATE'),
+                'description' => acym_translation('ACYM_ORDER_CREATION_DATE_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_processing_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'order_number' => [
+                'nicename' => acym_translation('ACYM_ORDER_NUMBER'),
+                'description' => acym_translation('ACYM_ORDER_NUMBER_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_refunded_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'param2' => [
+                'nicename' => acym_translation('ACYM_ORDER_NUMBER'),
+                'description' => acym_translation('ACYM_ORDER_NUMBER_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-failed_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'param2' => [
+                'nicename' => acym_translation('ACYM_ORDER_NUMBER'),
+                'description' => acym_translation('ACYM_ORDER_NUMBER_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-cancelled_order'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'param2' => [
+                'nicename' => acym_translation('ACYM_ORDER_NUMBER'),
+                'description' => acym_translation('ACYM_ORDER_NUMBER_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_reset_password'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'user_login' => [
+                'nicename' => acym_translation('ACYM_USER_NAME'),
+                'description' => acym_translation('ACYM_USER_NAME_OVERRIDE_DESC'),
+            ],
+            'link_reset_password' => [
+                'nicename' => acym_translation('ACYM_LINK_RESET_PASSWORD'),
+                'description' => acym_translation('ACYM_LINK_RESET_PASSWORD_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_new_account'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'user_login' => [
+                'nicename' => acym_translation('ACYM_USER_NAME'),
+                'description' => acym_translation('ACYM_USER_NAME_OVERRIDE_DESC'),
+            ],
+            'my_account_link' => [
+                'nicename' => acym_translation('ACYM_LINK_TO_ACCOUNT_FRONT'),
+                'description' => acym_translation('ACYM_LINK_TO_ACCOUNT_FRONT_OVERRIDE_DESC'),
+            ],
+            'user_password' => [
+                'nicename' => acym_translation('ACYM_PASSWORD'),
+                'description' => acym_translation('ACYM_PASSWORD_OVERRIDE_DESC'),
+            ],
+        ];
+
+        $overridesParamsAll['woo-customer_note'] = [
+            'param1' => [
+                'nicename' => acym_translation('ACYM_SITE_NAME'),
+                'description' => acym_translation('ACYM_SITE_NAME_OVERRIDE_DESC'),
+            ],
+            'param2' => [
+                'nicename' => acym_translation('ACYM_ORDER_CREATION_DATE'),
+                'description' => acym_translation('ACYM_ORDER_CREATION_DATE_OVERRIDE_DESC'),
+            ],
+            'user_billing_full_name' => [
+                'nicename' => acym_translation('ACYM_USER_BILLING_FULL_NAME'),
+                'description' => acym_translation('ACYM_USER_BILLING_FULL_NAME_OVERRIDE_DESC'),
+            ],
+            'customer_note' => [
+                'nicename' => acym_translation('ACYM_CUSTOMER_NOTE'),
+                'description' => acym_translation('ACYM_CUSTOMER_NOTE_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_DETAILS_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_order_meta' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_ORDER_META_OVERRIDE_DESC'),
+            ],
+            'woocommerce_email_customer_details' => [
+                'nicename' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS'),
+                'description' => acym_translation('ACYM_WOOCOMMERCE_EMAIL_CUSTOMER_DETAILS_OVERRIDE_DESC'),
+            ],
+        ];
     }
 
     public function onAcymGetEmailOverrideSources(&$sources)
     {
-        //$sources[self::MAIL_OVERRIDE_SOURCE_NAME] = self::PLUGIN_DISPLAYED_NAME;
+        $sources[self::MAIL_OVERRIDE_SOURCE_NAME] = self::PLUGIN_DISPLAYED_NAME;
+    }
+
+
+    /**
+     * @param $args
+     *             0: to
+     *             1: subject
+     *             2: body
+     *             3: headers
+     *             4: attachments
+     * @param $emailTypeClass
+     */
+    public function onWooCommerceEmailSend($args, $emailTypeClass)
+    {
+        $overrideClass = new OverrideClass();
+        $activeOverrides = $overrideClass->getActiveOverrides('name');
+
+        if (empty($activeOverrides)) return $args;
+
+        if (empty($activeOverrides['woo-'.$emailTypeClass->id])) return $args;
+
+        $override = $activeOverrides['woo-'.$emailTypeClass->id];
+
+        $mailClass = new MailClass();
+        $mail = $mailClass->getOneById($override->mail_id);
+
+        if (empty($mail)) return $args;
+
+        $mail = $this->onWooCommerceEmailSendReplaceTags($mail, $emailTypeClass);
+
+        $args[2] = $mail->body;
+
+        $dynamicSubjects = [
+            'customer_invoice',
+            'customer_refunded_order',
+        ];
+        if (in_array($emailTypeClass->id, $dynamicSubjects)) {
+            $overrideNameKey = array_search($emailTypeClass->id, $dynamicSubjects);
+            $overrideName = 'woo-'.$dynamicSubjects[$overrideNameKey];
+
+            $wooOverrides = [];
+            $this->onAcymGetEmailOverrides($wooOverrides);
+
+            $key = array_search($overrideName, array_column($wooOverrides, 'name'));
+            $mail->subject = $wooOverrides[$key]['base_subject'][0];
+            $mail = $this->onWooCommerceEmailSendReplaceTags($mail, $emailTypeClass, 'subject');
+
+            $args[1] = $mail->subject;
+        }
+
+        return $args;
+    }
+
+    private function onWooCommerceEmailSendReplaceTags($mail, $emailTypeClass, $column = 'body')
+    {
+        $order = $emailTypeClass->object;
+
+        $dynamicText = [
+            '{site_title}' => wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES),
+        ];
+
+        if (get_class($order) != 'WP_User') {
+            $dynamicText['{order_number}'] = $order->get_order_number();
+            $dynamicText['{user_billing_full_name}'] = $order->get_formatted_billing_full_name();
+            $dynamicText['{order_date_created}'] = wc_format_datetime($order->get_date_created());
+            $dynamicText['{checkout_payment_url}'] = '<a href="'.esc_url($order->get_checkout_payment_url()).'">';
+            if (!empty($emailTypeClass->customer_note)) $dynamicText['{customer_note}'] = wpautop(wptexturize(make_clickable($emailTypeClass->customer_note)));
+            //get woocommerce_email_order_details
+            ob_start();
+            do_action('woocommerce_email_order_details', $order, true, false, '');
+            $dynamicText['{woocommerce_email_order_details}'] = ob_get_clean();
+
+            //get woocommerce_email_order_meta
+            ob_start();
+            do_action('woocommerce_email_order_meta', $order, true, false, '');
+            $dynamicText['{woocommerce_email_order_meta}'] = ob_get_clean();
+
+            //get woocommerce_email_customer_details
+            ob_start();
+            do_action('woocommerce_email_customer_details', $order, true, false, '');
+            $dynamicText['{woocommerce_email_customer_details}'] = ob_get_clean();
+        } else {
+            $dynamicText['{user_login}'] = $emailTypeClass->user_login;
+            $dynamicText['{user_password}'] = $emailTypeClass->user_pass;
+            $dynamicText['{my_account_link}'] = make_clickable(esc_url(wc_get_page_permalink('myaccount')));
+            $dynamicText['{link_reset_password}'] = esc_url(
+                add_query_arg(['key' => $emailTypeClass->reset_key, 'id' => $emailTypeClass->user_id], wc_get_endpoint_url('lost-password', '', wc_get_page_permalink('myaccount')))
+            );
+        }
+
+
+        $pluginHelper = new PluginHelper();
+        $mail->{$column} = $pluginHelper->replaceDText($mail->{$column}, $dynamicText);
+
+        return $mail;
     }
 }

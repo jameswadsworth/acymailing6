@@ -9,11 +9,27 @@
                 'automan' => acym_translation('ACYM_CONFIGURATION_QUEUE_AUTOMAN'),
                 'manual' => acym_translation('ACYM_CONFIGURATION_QUEUE_MANUAL'),
             ];
-            echo acym_radio($queueModes, 'config[queue_type]', $this->config->get('queue_type', 'automan'));
+            echo acym_radio(
+                $queueModes,
+                'config[queue_type]',
+                $this->config->get('queue_type', 'automan'),
+                [
+                    'related' => [
+                        'auto' => 'automatic_only',
+                        'automan' => 'automatic_manual',
+                        'manual' => 'manual_only',
+                    ],
+                ]
+            );
             ?>
 		</div>
-		<div class="cell medium-3"><?php echo acym_translation('ACYM_AUTO_SEND_PROCESS'); ?></div>
-		<div class="cell medium-9">
+		<div class="cell medium-3 automatic_only automatic_manual">
+            <?php
+            echo acym_translation('ACYM_AUTO_SEND_PROCESS');
+            echo acym_info('ACYM_AUTO_SEND_PROCESS_DESC');
+            ?>
+		</div>
+		<div class="cell medium-9 automatic_only automatic_manual">
             <?php
             $cronFrequency = $this->config->get('cron_frequency');
             $valueBatch = acym_level(2) ? intval($this->config->get('queue_batch_auto', 1)) : 1;
@@ -35,27 +51,29 @@
                 $delayHtml
             ); ?>
 		</div>
-		<div class="cell medium-3"></div>
-		<div class="cell medium-9">
+		<div class="cell medium-3 automatic_only automatic_manual"></div>
+		<div class="cell medium-9 automatic_only automatic_manual">
             <?php
             $delayTypeAuto = $data['typeDelay'];
             echo acym_translationSprintf(
                 'ACYM_WAIT_X_TIME_BETWEEN_MAILS',
                 $delayTypeAuto->display('config[email_frequency]', $this->config->get('email_frequency', 0), 0)
-            ); ?>
+            );
+            ?>
 		</div>
-		<div class="cell medium-3"><?php echo acym_translation('ACYM_MANUAL_SEND_PROCESS'); ?></div>
-		<div class="cell medium-9">
+		<div class="cell medium-3 manual_only automatic_manual"><?php echo acym_translation('ACYM_MANUAL_SEND_PROCESS'); ?></div>
+		<div class="cell medium-9 manual_only automatic_manual">
             <?php
             $delayTypeAuto = $data['typeDelay'];
             echo acym_translationSprintf(
                 'ACYM_SEND_X_WAIT_Y',
                 '<input class="intext_input" type="text" name="config[queue_nbmail]" value="'.intval($this->config->get('queue_nbmail')).'" />',
                 $delayTypeAuto->display('config[queue_pause]', $this->config->get('queue_pause'), 0)
-            ); ?>
+            );
+            ?>
 		</div>
-		<div class="cell medium-3 margin-top-1"><?php echo '<span>'.acym_translation('ACYM_MAX_NB_TRY').'</span>'.acym_info('ACYM_MAX_NB_TRY_DESC'); ?></div>
-		<div class="cell medium-9 margin-top-1">
+		<div class="cell medium-3"><?php echo '<span>'.acym_translation('ACYM_MAX_NB_TRY').'</span>'.acym_info('ACYM_MAX_NB_TRY_DESC'); ?></div>
+		<div class="cell medium-9">
             <?php echo acym_translationSprintf(
                 'ACYM_CONFIG_TRY',
                 '<input class="intext_input" type="text" name="config[queue_try]" value="'.intval($this->config->get('queue_try')).'">'
@@ -80,32 +98,40 @@
             ?>
 		</div>
 		<div class="cell medium-3"><?php echo acym_translation('ACYM_ORDER_SEND_QUEUE'); ?></div>
-		<div class="cell medium-9">
-            <?php
-            $ordering = [];
-            $ordering[] = acym_selectOption("user_id, ASC", 'user_id ASC');
-            $ordering[] = acym_selectOption("user_id, DESC", 'user_id DESC');
-            $ordering[] = acym_selectOption('rand', 'ACYM_RANDOM');
-            echo acym_select(
-                $ordering,
-                'config[sendorder]',
-                $this->config->get('sendorder', 'user_id, ASC'),
-                'class="intext_select"',
-                'value',
-                'text',
-                'sendorderid'
-            );
-
-            echo '</div>';
-
-            ?>
+		<div class="cell medium-9 grid-x">
+			<div class="cell medium-6 large-4 xlarge-3 xxlarge-2">
+                <?php
+                echo acym_select(
+                    [
+                        acym_selectOption(
+                            'user_id, ASC',
+                            acym_translationSprintf('ACYM_COMBINED_TRANSLATIONS', acym_translation('ACYM_USER_ID'), acym_translation('ACYM_ASC'))
+                        ),
+                        acym_selectOption(
+                            'user_id, DESC',
+                            acym_translationSprintf('ACYM_COMBINED_TRANSLATIONS', acym_translation('ACYM_USER_ID'), acym_translation('ACYM_DESC'))
+                        ),
+                        acym_selectOption('rand', 'ACYM_RANDOM'),
+                    ],
+                    'config[sendorder]',
+                    $this->config->get('sendorder', 'user_id, ASC'),
+                    'class="acym__select"',
+                    'value',
+                    'text',
+                    'sendorderid'
+                );
+                ?>
+			</div>
 		</div>
+        <?php
+
+        ?>
 	</div>
-    <?php
+</div>
+<?php
 if (!acym_level(1)) {
-    $data['version'] = 'essential';
     echo '<div class="acym_area">
             <div class="acym__title acym__title__secondary">'.acym_translation('ACYM_CRON').'</div>';
-    include acym_getView('dashboard', 'upgrade');
+    include acym_getView('configuration', 'upgrade_license');
     echo '</div>';
 }

@@ -6,6 +6,8 @@ use AcyMailing\Classes\ListClass;
 use AcyMailing\Classes\UserClass;
 use AcyMailing\Helpers\RegacyHelper;
 
+defined('_JEXEC') or die('Restricted access');
+
 class plgSystemAcymtriggers extends JPlugin
 {
     var $oldUser = null;
@@ -105,20 +107,21 @@ class plgSystemAcymtriggers extends JPlugin
 
     public function onBeforeCompileHead()
     {
+        // Don't show forms in popup iframes
+        if (!empty($_REQUEST['tmpl']) && in_array($_REQUEST['tmpl'], ['component', 'raw'])) return;
+        if (!empty($_REQUEST['acym_preview'])) return;
+
         $app = JFactory::getApplication();
         if ($app->getName() != 'site') return;
 
         if (!$this->initAcy()) return;
 
-        $isPreview = acym_getVar('bool', 'acym_preview', false);
-        if ($isPreview) return;
+        $menu = acym_getMenu();
+        if (empty($menu)) return;
 
         $formClass = new FormClass();
         $forms = $formClass->getAllFormsToDisplay();
         if (empty($forms)) return;
-
-        $menu = acym_getMenu();
-        if (empty($menu)) return;
 
         foreach ($forms as $form) {
             if (!empty($form->pages) && (in_array($menu->id, $form->pages) || in_array('all', $form->pages))) {
@@ -142,31 +145,51 @@ class plgSystemAcymtriggers extends JPlugin
 
     public function onAfterRender()
     {
-        if (!$this->initAcy()) return;
-
         $this->displayForms();
+        $this->applyRegacy();
+    }
 
-        $config = acym_config();
-        if (!$config->get('regacy', 0)) return;
+    private function applyRegacy()
+    {
+        $db = JFactory::getDBO();
+        $db->setQuery('SELECT `value` FROM #__acym_configuration WHERE `name` LIKE "%regacy" OR `name` LIKE "%\_sub"');
+        $regacyOptions = $db->loadColumn();
+
+        $regacyNeeded = false;
+        foreach ($regacyOptions as $oneOption) {
+            if (!empty($oneOption)) {
+                $regacyNeeded = true;
+                break;
+            }
+        }
+        if (!$regacyNeeded) return;
 
         // Get the current extension
-        $option = acym_getVar('cmd', 'option');
-        if (empty($option)) return;
+        if (empty($_REQUEST['option'])) return;
+        $option = $_REQUEST['option'];
 
-        $components = [
-            'com_users' => [
-                'view' => ['registration', 'profile', 'user'],
-                'edittasks' => ['profile', 'user'],
-                'email' => ['jform[email2]', 'jform[email1]'],
-                'password' => ['jform[password2]', 'jform[password1]'],
-                'checkLayout' => ['profile' => 'edit'],
-                'lengthafter' => 200,
-                'containerClass' => 'control-group',
-                'labelClass' => 'control-label',
-                'valueClass' => 'controls',
-                'baseOption' => 'regacy',
-            ],
-        ];
+        if (!$this->initAcy()) return;
+
+
+        $config = acym_config();
+        if ($config->get('regacy', 0)) {
+            $components = [
+                'com_users' => [
+                    'view' => ['registration', 'profile', 'user'],
+                    'edittasks' => ['profile', 'user'],
+                    'email' => ['jform[email2]', 'jform[email1]'],
+                    'password' => ['jform[password2]', 'jform[password1]'],
+                    'checkLayout' => ['profile' => 'edit'],
+                    'lengthafter' => 200,
+                    'containerClass' => 'control-group',
+                    'labelClass' => 'control-label',
+                    'valueClass' => 'controls',
+                    'baseOption' => 'regacy',
+                ],
+            ];
+        } else {
+            $components = [];
+        }
 
         acym_trigger('onRegacyAddComponent', [&$components]);
         if (!isset($components[$option])) return;
@@ -272,6 +295,9 @@ class plgSystemAcymtriggers extends JPlugin
             $session = JFactory::getSession();
             $session->set('com_media.return_url', 'index.php?option=com_media&view=images&tmpl=component');
         }
+
+        if (!$this->initAcy()) return true;
+        acym_trigger('onRegacyAfterRoute', []);
     }
 
     // Trigger for hikashop user creation
